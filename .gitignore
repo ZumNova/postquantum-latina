@@ -4,6 +4,7 @@ out/
 
 # Commonly ignored directories
 node_modules/
+frontend/vendor_modules/
 .logs/
 .ignore/
 

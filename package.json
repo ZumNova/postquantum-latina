@@ -4,9 +4,11 @@
   "private": true,
   "description": "QRL/Zond testnet dapp experiments",
   "engines": {
-    "node": ">=18"
+    "node": ">=20.19.0"
   },
   "scripts": {
+    "build": "npm run vercel:build",
+    "vercel:build": "node scripts/qrl/build-frontend.js",
     "build:solidity": "forge build",
     "test:solidity": "forge test",
     "frontend:serve": "python3 -m http.server 5173 --directory frontend",
