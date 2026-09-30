@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>QRLatina Factory</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <canvas id="network-canvas" aria-hidden="true"></canvas>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">Q</div>
+          <div>
+            <strong>QRLatina</strong>
+            <span>QRL testnet</span>
+          </div>
+        </div>
+
+        <nav class="nav">
+          <button class="nav-item active" type="button" data-view="factory" title="Factory">
+            <span>F</span>
+            <b>Factory</b>
+          </button>
+          <button class="nav-item" type="button" data-view="swap" title="Swap">
+            <span>S</span>
+            <b>Swap</b>
+          </button>
+          <button class="nav-item" type="button" data-view="connect" title="QRL Connect">
+            <span>Q</span>
+            <b>Connect</b>
+          </button>
+          <button class="nav-item" type="button" data-view="oracle" title="Oracle">
+            <span>O</span>
+            <b>Oracle</b>
+          </button>
+          <button class="nav-item" type="button" data-view="contracts" title="Contratos">
+            <span>C</span>
+            <b>Contratos</b>
+          </button>
+        </nav>
+
+        <div class="network-card">
+          <span>Chain</span>
+          <strong>QRL v2</strong>
+          <small>ID 1337</small>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Mini AMM post-cuantico</p>
+            <h1>Factory de mercados QRLatina</h1>
+          </div>
+          <div class="wallet-pill">
+            <span></span>
+            <b id="wallet-label">Cargando...</b>
+          </div>
+        </header>
+
+        <section class="metrics-grid" aria-label="Estado">
+          <article class="metric">
+            <span>Valor bloqueado</span>
+            <strong id="locked-value">$1,546.00</strong>
+            <small>QRLAT/QETH + QRLAT/WQRL</small>
+          </article>
+          <article class="metric">
+            <span>Mercados</span>
+            <strong id="markets-count">2</strong>
+            <small id="markets-label">Iniciales</small>
+          </article>
+          <article class="metric">
+            <span>Fee</span>
+            <strong>0.30%</strong>
+            <small>Modelo V2</small>
+          </article>
+          <article class="metric">
+            <span>Estado</span>
+            <strong id="network-state">Local</strong>
+            <small id="block-label">Listo para testnet</small>
+          </article>
+        </section>
+
+        <section class="content-grid">
+          <section class="panel market-panel" data-panel="factory">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Secuencia</p>
+                <h2>Deploy del mini factory</h2>
+              </div>
+              <button class="icon-button" type="button" title="Copiar secuencia" id="copy-sequence">C</button>
+            </div>
+
+            <ol class="deploy-flow">
+              <li class="done">
+                <span></span>
+                <div>
+                  <strong>WQRL</strong>
+                  <small>Wrapper de QRL nativo</small>
+                </div>
+              </li>
+              <li class="done">
+                <span></span>
+                <div>
+                  <strong>Factory</strong>
+                  <small>Crea pares QRC20</small>
+                </div>
+              </li>
+              <li class="done">
+                <span></span>
+                <div>
+                  <strong>Router</strong>
+                  <small>Liquidez y swaps</small>
+                </div>
+              </li>
+              <li class="done">
+                <span></span>
+                <div>
+                  <strong>Primeros mercados</strong>
+                  <small id="factory-mode-label">Factory estatica con pares reales</small>
+                </div>
+              </li>
+              <li>
+                <span></span>
+                <div>
+                  <strong>Liquidez inicial</strong>
+                  <small>Esperando metodo write habilitado</small>
+                </div>
+              </li>
+            </ol>
+          </section>
+
+          <section class="panel swap-panel" data-panel="swap">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Swap simulado</p>
+                <h2>Intercambios disponibles</h2>
+              </div>
+              <span class="status-dot" id="pair-status">Simulado</span>
+            </div>
+
+            <div class="swap-box">
+              <label for="amount-in">Pagas</label>
+              <div class="amount-row">
+                <input id="amount-in" type="number" min="0" step="0.01" value="10" />
+                <select id="token-in" aria-label="Token de entrada">
+                  <option value="QRLAT">QRLAT</option>
+                  <option value="QETH">QETH</option>
+                  <option value="QZD">QZD</option>
+                  <option value="WQRL">WQRL</option>
+                  <option value="QRL">QRL</option>
+                </select>
+              </div>
+            </div>
+
+            <button class="swap-arrow" type="button" title="Invertir tokens" id="flip-pair">v</button>
+
+            <div class="swap-box">
+              <label for="amount-out">Recibis</label>
+              <div class="amount-row">
+                <input id="amount-out" type="text" readonly />
+                <select id="token-out" aria-label="Token de salida">
+                  <option value="QETH">QETH</option>
+                  <option value="QRLAT">QRLAT</option>
+                  <option value="QZD">QZD</option>
+                  <option value="WQRL">WQRL</option>
+                  <option value="QRL">QRL</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="market-strip" id="market-strip" aria-label="Mercados"></div>
+
+            <dl class="quote-list">
+              <div>
+                <dt>Precio spot</dt>
+                <dd id="spot-price">1 QRLAT = 1 QETH</dd>
+              </div>
+              <div>
+                <dt>Impacto</dt>
+                <dd id="price-impact">0.99%</dd>
+              </div>
+              <div>
+                <dt>Fee estimado</dt>
+                <dd id="fee-paid">0.0300 QRLAT</dd>
+              </div>
+            </dl>
+
+            <button class="primary-button" type="button">Preparar swap testnet</button>
+          </section>
+
+          <section class="panel connect-panel" data-panel="connect">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Wallet</p>
+                <h2>QRL Connect</h2>
+              </div>
+              <span class="status-dot" id="qrl-connect-status">Desconectado</span>
+            </div>
+
+            <div class="connect-actions">
+              <button class="primary-button" type="button" id="qrl-connect-button">Generar codigo</button>
+              <button class="secondary-button" type="button" id="qrl-request-accounts" disabled>Leer cuenta</button>
+            </div>
+
+            <div class="connect-code-wrap">
+              <label for="qrl-connect-code">Codigo para pegar en MyQRLWallet</label>
+              <textarea id="qrl-connect-code" readonly placeholder="qrlconnect://..."></textarea>
+              <div class="connect-actions">
+                <button class="secondary-button" type="button" id="copy-qrl-code" disabled>Copiar codigo</button>
+                <a class="secondary-link" id="open-qrl-wallet" href="https://qrlwallet.com/dapp-sessions" target="_blank" rel="noreferrer">Abrir web wallet</a>
+              </div>
+            </div>
+
+            <div class="wallet-readout">
+              <span>Cuenta conectada</span>
+              <strong id="qrl-connected-account">Sin cuenta</strong>
+            </div>
+
+            <div class="approve-test">
+              <label for="approve-token-select">Prueba write</label>
+              <select id="approve-token-select">
+                <option value="QRLAT">QRLAT -> Router</option>
+                <option value="QETH">QETH -> Router</option>
+                <option value="QZD">QZD -> Router</option>
+                <option value="WQRL">WQRL -> Router</option>
+              </select>
+              <button class="primary-button" type="button" id="approve-test-button" disabled>Probar approve minimo</button>
+              <p class="connect-result" id="qrl-connect-result">Esperando pairing.</p>
+            </div>
+          </section>
+
+          <section class="panel oracle-panel" data-panel="oracle">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Precio</p>
+                <h2>Oracle interno</h2>
+              </div>
+              <span class="status-dot">AMM</span>
+            </div>
+
+            <div class="oracle-bars">
+              <div>
+                <span>QRLAT/QETH</span>
+                <b id="qeth-ratio">1.0000</b>
+              </div>
+              <meter min="0" max="100" value="52"></meter>
+              <div>
+                <span>QRLAT/WQRL</span>
+                <b id="wqrl-ratio">0.0100</b>
+              </div>
+              <meter min="0" max="100" value="28"></meter>
+            </div>
+
+            <div class="locked-table">
+              <div>
+                <span>QRLAT</span>
+                <strong id="balance-qrlat">...</strong>
+              </div>
+              <div>
+                <span>QETH</span>
+                <strong id="balance-qeth">...</strong>
+              </div>
+              <div>
+                <span>QRL</span>
+                <strong id="balance-qrl">...</strong>
+              </div>
+              <div>
+                <span>WQRL</span>
+                <strong id="balance-wqrl">...</strong>
+              </div>
+              <div>
+                <span>QZD</span>
+                <strong id="balance-qzd">...</strong>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel contracts-panel" data-panel="contracts">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">QRL testnet</p>
+                <h2>Contratos desplegados</h2>
+              </div>
+              <span class="status-dot" id="amm-mode">AMM</span>
+            </div>
+
+            <div class="contract-list" id="contract-list"></div>
+
+            <div class="pair-list-wrap">
+              <div class="pair-list-heading">
+                <span>Pares</span>
+                <strong id="pair-count-label">0</strong>
+              </div>
+              <div class="pair-list" id="pair-list"></div>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "@qrlwallet/connect": "/node_modules/@qrlwallet/connect/dist/index.mjs",
+          "eventemitter3": "/vendor/eventemitter3-browser.js",
+          "@noble/post-quantum/": "/node_modules/@noble/post-quantum/",
+          "@noble/hashes/": "/node_modules/@qrlwallet/connect/node_modules/@noble/hashes/",
+          "@noble/curves/": "/node_modules/@noble/post-quantum/node_modules/@noble/curves/",
+          "@theqrl/mldsa87": "/node_modules/@qrlwallet/connect/node_modules/@theqrl/mldsa87/dist/mjs/mldsa87.js",
+          "socket.io-client": "/node_modules/socket.io-client/build/esm/index.js",
+          "engine.io-client": "/vendor/engine-io-client-browser.js",
+          "engine.io-parser": "/node_modules/engine.io-parser/build/esm/index.js",
+          "socket.io-parser": "/node_modules/socket.io-parser/build/esm/index.js",
+          "@socket.io/component-emitter": "/node_modules/@socket.io/component-emitter/lib/esm/index.js"
+        }
+      }
+    </script>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

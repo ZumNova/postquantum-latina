@@ -1,0 +1,31 @@
+{
+  "name": "dapp-post-cuantica",
+  "version": "0.1.0",
+  "private": true,
+  "description": "QRL/Zond testnet dapp experiments",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build:solidity": "forge build",
+    "test:solidity": "forge test",
+    "frontend:serve": "python3 -m http.server 5173 --directory frontend",
+    "frontend:dev": "node scripts/qrl/dev-server.js",
+    "deploy:pqd:qrl": "node scripts/qrl/deploy-pqd.js",
+    "deploy:amm:qrl": "node scripts/qrl/deploy-amm.js",
+    "deploy:amm:static:qrl": "node scripts/qrl/deploy-amm-static.js",
+    "create:pairs:qrl": "node scripts/qrl/create-pairs.js",
+    "check:amm:qrl": "node scripts/qrl/check-amm.js",
+    "check:qrl": "node scripts/qrl/check-network.js",
+    "check:wallet": "node scripts/qrl/check-wallet.js",
+    "check:assets": "node scripts/qrl/check-assets.js"
+  },
+  "dependencies": {
+    "@qrlwallet/connect": "^4.0.0",
+    "@qrlwallet/connect-ui": "^0.2.0",
+    "@theqrl/wallet.js": "^3.0.1",
+    "@theqrl/web3": "^0.4.0",
+    "dotenv": "^17.4.2",
+    "ethers": "^6.13.4"
+  }
+}

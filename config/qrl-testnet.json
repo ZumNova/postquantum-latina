@@ -1,0 +1,75 @@
+{
+  "provider": "https://qrlwallet.com/api/qrl-rpc/testnet",
+  "chainId": 1337,
+  "txConfirmations": 12,
+  "protocols": {
+    "quantaSwap": {
+      "mode": "htlc-atomic-swap",
+      "qrlHtlc": "Q238322ad2e8f935b4481fcc379779c31b84decb0",
+      "ethSepoliaHtlc": "0x910D5d4a7f2037c01F3B4C835167357e89909281",
+      "ethSepoliaRpc": "https://ethereum-sepolia-rpc.publicnode.com",
+      "ethSepoliaChainId": 11155111,
+      "qrlChainId": 1337,
+      "source": "https://github.com/DigitalGuards/QuantaSwap"
+    }
+  },
+  "wallets": {
+    "myQrlWallet": "QeAf837076B1057cf62b2BB7b39383bfcD4504B81"
+  },
+  "contracts": {
+    "pqdToken": "Qa365cc5d87447b56e1f637bf4252e5859f9b8f4d",
+    "zondSwapRouter": "",
+    "zondSwapFactory": "",
+    "wznd": "",
+    "qrLatinaAmm": {
+      "wqrl": "Q092Bb03241345da8a3d4b14569e6CBb21EBF37a0",
+      "factory": "Q602636EcC16eD55C459718bc2Aa7E38EfcC8f40F",
+      "router": "QC218fb53083BF6Dc29e5AC6b2dd3251feFd2D6F5",
+      "lens": "Q1301cfC84785ee0A9C41BA5eCf3f5f2606202FF0",
+      "factoryMode": "static-constructor-loaded",
+      "pairs": {
+        "QRLAT/QETH": "Qbae5372275b985c002a4762Afaf26C5175B44d55",
+        "QRLAT/QZD": "Q1aDd072449dCC7ecBe2e4B6a97809E59E6bd76C2",
+        "QRLAT/WQRL": "QFc51901121F5D73f536b59bEd3aaEcA5E3Aca1cE",
+        "QETH/QZD": "QB086d7E2DF2BB3f1607Cfe7B13eAD7B12994b336",
+        "QETH/WQRL": "Q450B671eEFb3Fa35F3ce1f896b60C6E0B99e499E",
+        "QZD/WQRL": "Q4298bcEe7f1698FFfD5E11385bf39D5bbE79E47c"
+      }
+    },
+    "qrLatinaAmmPrevious": {
+      "wqrl": "Q338967cA45ABDB8Bed33DCa462250A4f2538e574",
+      "factory": "Qb514324739D2EC3DB6470dD2509E6286fc063eFa",
+      "router": "QE486916cDB85319F17b185E9e2bBbe7f09b4c9A6",
+      "lens": "Q0ddBE139A69be09A16e0031638dec0E615184d85",
+      "factoryMode": "manual-pair-registry",
+      "pairs": {}
+    }
+  },
+  "tokens": {
+    "WQRL": {
+      "name": "WIKER-QRL",
+      "symbol": "WQRL",
+      "address": "Qdf4583e9ea0bef05db96a5f6224e31fabf60ead2"
+    },
+    "QETH": {
+      "name": "ETHQRL",
+      "symbol": "QETH",
+      "address": "Q5ba50be0ea713b0c0d4a73fe42903a1ae2f6a8ac"
+    },
+    "QZD": {
+      "name": "ZONDSWAP",
+      "symbol": "QZD",
+      "address": "Q13792c1c7379709f9ad13d7121983e37f2b970aa"
+    },
+    "QRLAT": {
+      "name": "QRLatina",
+      "symbol": "QRLAT",
+      "address": "Qa365cc5d87447b56e1f637bf4252e5859f9b8f4d"
+    },
+    "WQRL_WRAPPED": {
+      "name": "QRLatina Wrapped QRL",
+      "symbol": "WQRL",
+      "address": "Q092Bb03241345da8a3d4b14569e6CBb21EBF37a0"
+    }
+  }
+}
