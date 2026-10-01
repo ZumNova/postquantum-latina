@@ -43,9 +43,15 @@ const qrlConnectCode = document.querySelector("#qrl-connect-code");
 const copyQrlCode = document.querySelector("#copy-qrl-code");
 const openQrlWallet = document.querySelector("#open-qrl-wallet");
 const qrlConnectedAccount = document.querySelector("#qrl-connected-account");
+const qrlAccountFormat = document.querySelector("#qrl-account-format");
+const qrlReadChain = document.querySelector("#qrl-read-chain");
+const qrlReadBalance = document.querySelector("#qrl-read-balance");
+const qrlSignMessage = document.querySelector("#qrl-sign-message");
 const approveTokenSelect = document.querySelector("#approve-token-select");
 const approveTestButton = document.querySelector("#approve-test-button");
 const qrlConnectResult = document.querySelector("#qrl-connect-result");
+const qrlConnectLog = document.querySelector("#qrl-connect-log");
+const clearQrlLog = document.querySelector("#clear-qrl-log");
 
 let qrlProvider = null;
 let connectedQrlAccount = "";
@@ -70,6 +76,33 @@ function formatAmount(value, digits = 4) {
 function compactAddress(address) {
   if (!address || address.length < 12) return address || "Sin wallet";
   return `${address.slice(0, 5)}...${address.slice(-4)}`;
+}
+
+function formatQrlAddressFingerprint(address) {
+  if (!address || address.length < 25) return address || "Sin cuenta";
+  const body = address.startsWith("Q") ? address.slice(1) : address;
+  const middle = Math.max(8, Math.floor(body.length / 2) - 4);
+  return `Q${body.slice(0, 8)}...${body.slice(middle, middle + 8)}...${body.slice(-8)}`;
+}
+
+function getQrlAddressFormat(address) {
+  if (/^Q[0-9a-fA-F]{128}$/.test(address || "")) return "QIP-55 / 64 bytes";
+  if (/^Q[0-9a-fA-F]{40}$/.test(address || "")) return "Legacy / 20 bytes";
+  if (!address) return "Formato pendiente";
+  return `Formato no reconocido (${address.length} chars)`;
+}
+
+function setConnectedQrlAccount(account) {
+  connectedQrlAccount = account || "";
+  qrlConnectedAccount.textContent = connectedQrlAccount
+    ? formatQrlAddressFingerprint(connectedQrlAccount)
+    : "Sin cuenta";
+  qrlConnectedAccount.title = connectedQrlAccount;
+  qrlAccountFormat.textContent = getQrlAddressFormat(connectedQrlAccount);
+  const hasAccount = Boolean(connectedQrlAccount);
+  approveTestButton.disabled = !hasAccount;
+  qrlReadBalance.disabled = !hasAccount;
+  qrlSignMessage.disabled = !hasAccount;
 }
 
 function copyText(value) {
@@ -291,6 +324,15 @@ function setConnectResult(message) {
   qrlConnectResult.textContent = message;
 }
 
+function appendQrlLog(label, payload) {
+  const time = new Date().toLocaleTimeString("es-AR", { hour12: false });
+  const value = typeof payload === "string" ? payload : JSON.stringify(payload, null, 2);
+  const line = `[${time}] ${label}\n${value}`;
+  qrlConnectLog.textContent = qrlConnectLog.textContent === "Sin eventos todavia."
+    ? line
+    : `${line}\n\n${qrlConnectLog.textContent}`;
+}
+
 function formatError(error) {
   if (!error) return "Error desconocido";
   const name = error.name || "Error";
@@ -339,38 +381,55 @@ async function buildQrlProvider() {
     relayUrl: "https://qrlwallet.com",
     chainId: "0x539",
     autoReconnect: true,
+    walletRedirectOnRequest: true,
     debug: false
   });
 
   qrlProvider.on("statusChanged", status => {
     setConnectStatus(status);
+    appendQrlLog("statusChanged", status);
   });
 
   qrlProvider.on("connect", ({ chainId }) => {
     setConnectStatus(`Conectado ${chainId}`);
     qrlRequestAccounts.disabled = false;
+    qrlReadChain.disabled = false;
+    appendQrlLog("connect", { chainId });
   });
 
-  qrlProvider.on("disconnect", () => {
-    connectedQrlAccount = "";
-    qrlConnectedAccount.textContent = "Sin cuenta";
-    approveTestButton.disabled = true;
+  qrlProvider.on("disconnect", payload => {
+    setConnectedQrlAccount("");
     qrlRequestAccounts.disabled = true;
+    qrlReadChain.disabled = true;
     setConnectStatus("Desconectado");
+    appendQrlLog("disconnect", payload || "wallet desconectada");
   });
 
   qrlProvider.on("accountsChanged", accounts => {
-    connectedQrlAccount = accounts[0] || "";
-    qrlConnectedAccount.textContent = connectedQrlAccount || "Sin cuenta";
-    approveTestButton.disabled = !connectedQrlAccount;
+    setConnectedQrlAccount(accounts[0] || "");
+    appendQrlLog("accountsChanged", {
+      count: accounts.length,
+      first: accounts[0] ? formatQrlAddressFingerprint(accounts[0]) : null,
+      format: getQrlAddressFormat(accounts[0])
+    });
+  });
+
+  qrlProvider.on("chainChanged", chainId => {
+    appendQrlLog("chainChanged", chainId);
+  });
+
+  qrlProvider.on("connection_lost", () => {
+    appendQrlLog("connection_lost", "5 intentos de reconexion fallidos");
   });
 
   qrlProvider.on("late_response", payload => {
     if (payload.error) {
       setConnectResult(`Respuesta tardia con error: ${payload.error.message}`);
+      appendQrlLog("late_response:error", payload.error);
       return;
     }
     setConnectResult(`Respuesta tardia ${payload.method}: ${JSON.stringify(payload.result)}`);
+    appendQrlLog(`late_response:${payload.method}`, payload.result);
   });
 
   return qrlProvider;
@@ -387,11 +446,17 @@ async function generateQrlConnectCode() {
     qrlRequestAccounts.disabled = false;
     openQrlWallet.href = `https://qrlwallet.com/dapp-sessions#qrlconnect=${encodeURIComponent(uri)}`;
     setConnectStatus(provider.getStatus());
+    appendQrlLog("pairing", {
+      channelId: typeof provider.getChannelId === "function" ? provider.getChannelId() : "no disponible",
+      status: provider.getStatus(),
+      uriLength: uri.length
+    });
     setConnectResult("Pega este codigo en MyQRLWallet o usa Abrir web wallet.");
   } catch (error) {
     console.error("QRL Connect pairing failed", error);
     setConnectStatus("Error");
     setConnectResult(formatError(error));
+    appendQrlLog("pairing:error", formatError(error));
   }
 }
 
@@ -402,11 +467,13 @@ async function requestQrlAccounts() {
     const localAccounts = provider.getAccounts();
 
     if (localAccounts.length) {
-      connectedQrlAccount = localAccounts[0];
-      qrlConnectedAccount.textContent = connectedQrlAccount;
-      approveTestButton.disabled = false;
+      setConnectedQrlAccount(localAccounts[0]);
       setConnectStatus(status);
       setConnectResult("Cuenta ya autorizada en la sesion.");
+      appendQrlLog("qrl_accounts:local", {
+        account: formatQrlAddressFingerprint(localAccounts[0]),
+        format: getQrlAddressFormat(localAccounts[0])
+      });
       return;
     }
 
@@ -423,15 +490,79 @@ async function requestQrlAccounts() {
       60000,
       "MyQRLWallet no respondio en 60s. Abrila y revisa si quedo una solicitud pendiente."
     );
-    connectedQrlAccount = Array.isArray(accounts) ? accounts[0] || "" : "";
-    qrlConnectedAccount.textContent = connectedQrlAccount || "Sin cuenta";
-    approveTestButton.disabled = !connectedQrlAccount;
+    setConnectedQrlAccount(Array.isArray(accounts) ? accounts[0] || "" : "");
+    appendQrlLog("qrl_requestAccounts", {
+      count: Array.isArray(accounts) ? accounts.length : 0,
+      first: connectedQrlAccount ? formatQrlAddressFingerprint(connectedQrlAccount) : null,
+      format: getQrlAddressFormat(connectedQrlAccount)
+    });
     setConnectResult(connectedQrlAccount ? "Cuenta conectada. Ya podemos probar approve." : "La wallet no devolvio cuenta.");
   } catch (error) {
     console.error("QRL account request failed", error);
     setConnectResult(formatError(error));
+    appendQrlLog("qrl_requestAccounts:error", formatError(error));
   } finally {
     qrlRequestAccounts.disabled = false;
+  }
+}
+
+async function readQrlChain() {
+  try {
+    const provider = await buildQrlProvider();
+    setConnectResult("Leyendo chainId desde QRL Connect.");
+    const chainId = await provider.request({ method: "qrl_chainId" });
+    setConnectResult(`Chain conectada: ${chainId}`);
+    appendQrlLog("qrl_chainId", chainId);
+  } catch (error) {
+    console.error("QRL chain read failed", error);
+    setConnectResult(formatError(error));
+    appendQrlLog("qrl_chainId:error", formatError(error));
+  }
+}
+
+async function readQrlBalance() {
+  try {
+    const provider = await buildQrlProvider();
+    if (!connectedQrlAccount) throw new Error("Primero conecta y autoriza la cuenta.");
+
+    setConnectResult("Leyendo balance nativo de la cuenta conectada.");
+    const balance = await provider.request({
+      method: "qrl_getBalance",
+      params: [connectedQrlAccount, "latest"]
+    });
+    setConnectResult(`Balance recibido: ${String(balance)}`);
+    appendQrlLog("qrl_getBalance", {
+      account: formatQrlAddressFingerprint(connectedQrlAccount),
+      format: getQrlAddressFormat(connectedQrlAccount),
+      balance
+    });
+  } catch (error) {
+    console.error("QRL balance read failed", error);
+    setConnectResult(formatError(error));
+    appendQrlLog("qrl_getBalance:error", formatError(error));
+  }
+}
+
+async function signQrlMessage() {
+  try {
+    const provider = await buildQrlProvider();
+    if (!connectedQrlAccount) throw new Error("Primero conecta y autoriza la cuenta.");
+
+    const message = `QRLatina testnet ${new Date().toISOString()}`;
+    setConnectResult("Solicitud de firma enviada. Confirma en MyQRLWallet.");
+    const signature = await provider.request({
+      method: "qrl_signMessage",
+      params: [{ from: connectedQrlAccount, message }]
+    });
+    setConnectResult("Mensaje firmado. Revisa el log RPC.");
+    appendQrlLog("qrl_signMessage", {
+      signer: formatQrlAddressFingerprint(connectedQrlAccount),
+      response: signature
+    });
+  } catch (error) {
+    console.error("QRL sign message failed", error);
+    setConnectResult(formatError(error));
+    appendQrlLog("qrl_signMessage:error", formatError(error));
   }
 }
 
@@ -501,9 +632,15 @@ document.querySelector("#copy-sequence").addEventListener("click", async () => {
 
 qrlConnectButton.addEventListener("click", generateQrlConnectCode);
 qrlRequestAccounts.addEventListener("click", requestQrlAccounts);
+qrlReadChain.addEventListener("click", readQrlChain);
+qrlReadBalance.addEventListener("click", readQrlBalance);
+qrlSignMessage.addEventListener("click", signQrlMessage);
 copyQrlCode.addEventListener("click", async () => {
   await copyText(qrlConnectCode.value);
   setConnectResult("Codigo copiado.");
+});
+clearQrlLog.addEventListener("click", () => {
+  qrlConnectLog.textContent = "Sin eventos todavia.";
 });
 approveTestButton.addEventListener("click", sendApproveTest);
 

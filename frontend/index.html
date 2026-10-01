@@ -218,6 +218,13 @@
             <div class="wallet-readout">
               <span>Cuenta conectada</span>
               <strong id="qrl-connected-account">Sin cuenta</strong>
+              <small id="qrl-account-format">Formato pendiente</small>
+            </div>
+
+            <div class="connect-lab">
+              <button class="secondary-button" type="button" id="qrl-read-chain" disabled>Leer chain</button>
+              <button class="secondary-button" type="button" id="qrl-read-balance" disabled>Leer balance</button>
+              <button class="secondary-button" type="button" id="qrl-sign-message" disabled>Firmar mensaje</button>
             </div>
 
             <div class="approve-test">
@@ -230,6 +237,14 @@
               </select>
               <button class="primary-button" type="button" id="approve-test-button" disabled>Probar approve minimo</button>
               <p class="connect-result" id="qrl-connect-result">Esperando pairing.</p>
+            </div>
+
+            <div class="connect-log-wrap">
+              <div class="pair-list-heading">
+                <span>Log RPC</span>
+                <button class="secondary-button compact-button" type="button" id="clear-qrl-log">Limpiar</button>
+              </div>
+              <pre id="qrl-connect-log">Sin eventos todavia.</pre>
             </div>
           </section>
 

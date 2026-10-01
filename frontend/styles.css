@@ -587,7 +587,8 @@ meter::-webkit-meter-optimum-value {
 }
 
 .connect-code-wrap,
-.approve-test {
+.approve-test,
+.connect-log-wrap {
   display: grid;
   gap: 10px;
   margin-top: 16px;
@@ -595,7 +596,8 @@ meter::-webkit-meter-optimum-value {
 
 .connect-code-wrap label,
 .approve-test label,
-.wallet-readout span {
+.wallet-readout span,
+.wallet-readout small {
   color: var(--muted);
   font-size: 0.8rem;
 }
@@ -628,6 +630,36 @@ meter::-webkit-meter-optimum-value {
   overflow-wrap: anywhere;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.82rem;
+}
+
+.connect-lab {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.compact-button {
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 0.78rem;
+}
+
+.connect-log-wrap pre {
+  max-height: 220px;
+  min-height: 132px;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  color: var(--qrl-ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--qrl-line);
+  border-radius: 8px;
+  background: #fbfcfb;
 }
 
 .approve-test select {
@@ -731,6 +763,10 @@ meter::-webkit-meter-optimum-value {
   }
 
   .connect-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .connect-lab {
     grid-template-columns: 1fr;
   }
 }
