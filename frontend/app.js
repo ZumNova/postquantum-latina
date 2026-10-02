@@ -147,13 +147,28 @@ function qAddressToQip55ReadAddress(address) {
 function decodeAbiString(hexValue) {
   const clean = String(hexValue || "").replace(/^0x/, "");
   if (!clean || clean.length < 128) return hexValue || "";
-  const offset = Number.parseInt(clean.slice(0, 64), 16);
-  const lengthStart = offset * 2;
-  const byteLength = Number.parseInt(clean.slice(lengthStart, lengthStart + 64), 16);
-  const valueStart = lengthStart + 64;
-  const valueHex = clean.slice(valueStart, valueStart + byteLength * 2);
-  const bytes = valueHex.match(/.{1,2}/g)?.map(byte => Number.parseInt(byte, 16)) || [];
-  return new TextDecoder().decode(new Uint8Array(bytes));
+
+  const decodeAt = (lengthStart, wordHexLength) => {
+    const lengthWord = clean.slice(lengthStart, lengthStart + wordHexLength);
+    if (!lengthWord) return "";
+    const byteLength = Number(BigInt(`0x${lengthWord}`));
+    if (!Number.isFinite(byteLength) || byteLength <= 0 || byteLength > 1024) return "";
+    const valueStart = lengthStart + wordHexLength;
+    const valueHex = clean.slice(valueStart, valueStart + byteLength * 2);
+    if (valueHex.length < byteLength * 2) return "";
+    const bytes = valueHex.match(/.{1,2}/g)?.map(byte => Number.parseInt(byte, 16)) || [];
+    return new TextDecoder().decode(new Uint8Array(bytes));
+  };
+
+  const offset32 = Number(BigInt(`0x${clean.slice(0, 64)}`));
+  const standard = decodeAt(offset32 * 2, 64);
+  if (standard) return standard;
+
+  const offset64 = Number(BigInt(`0x${clean.slice(64, 128)}`));
+  const qip55 = decodeAt(offset64 * 2, 128);
+  if (qip55) return qip55;
+
+  return hexValue || "";
 }
 
 function decodeAbiUint(hexValue) {
