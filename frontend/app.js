@@ -133,6 +133,14 @@ function utf8ToHex(value) {
   return `0x${Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("")}`;
 }
 
+function qAddressToQip55ReadAddress(address) {
+  if (/^Q[0-9a-fA-F]{128}$/.test(address || "")) return address;
+  if (/^Q[0-9a-fA-F]{40}$/.test(address || "")) {
+    return `Q${address.slice(1).padStart(128, "0")}`;
+  }
+  throw new Error(`Direccion Q invalida para qrl_call: ${address || "vacia"}`);
+}
+
 function decodeAbiString(hexValue) {
   const clean = String(hexValue || "").replace(/^0x/, "");
   if (!clean || clean.length < 128) return hexValue || "";
@@ -616,17 +624,20 @@ async function callQrlatSymbol() {
     if (!connectedQrlAccount) throw new Error("Primero conecta y autoriza la cuenta.");
     if (!token || !token.address) throw new Error("Token QRLAT no configurado.");
 
+    const readAddress = qAddressToQip55ReadAddress(token.address);
     const call = {
       from: connectedQrlAccount,
-      to: token.address,
+      to: readAddress,
       data: "0x95d89b41"
     };
 
     qrlCallQrlat.disabled = true;
-    setConnectResult("Leyendo symbol() de QRLAT via qrl_call.");
+    setConnectResult("Leyendo symbol() de QRLAT via qrl_call con direccion QIP-55.");
     appendQrlLog("qrl_call:QRLAT.symbol:request", {
       from: formatQrlAddressFingerprint(call.from),
-      to: token.address,
+      configuredTo: token.address,
+      callTo: readAddress,
+      addressMode: token.address === readAddress ? "qip55" : "legacy-zero-left-padded",
       data: call.data
     });
 
