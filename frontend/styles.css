@@ -447,8 +447,11 @@ h2 {
 .primary-button {
   width: 100%;
   min-height: 48px;
+  padding: 10px 14px;
   color: white;
   font-weight: 850;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
   border-radius: 8px;
   background: linear-gradient(135deg, var(--latin-green), #0d7f63);
 }
@@ -465,10 +468,13 @@ h2 {
   align-items: center;
   justify-content: center;
   min-height: 42px;
-  padding: 0 12px;
+  padding: 9px 12px;
   color: var(--qrl-ink);
   font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
   text-decoration: none;
+  overflow-wrap: anywhere;
   border: 1px solid var(--qrl-line);
   border-radius: 8px;
   background: white;
@@ -580,10 +586,14 @@ meter::-webkit-meter-optimum-value {
   min-height: 520px;
 }
 
-.connect-actions {
+.connect-actions,
+.connect-code-line {
   display: grid;
-  grid-template-columns: 1fr 1fr;
   gap: 10px;
+}
+
+.connect-actions {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
 
 .connect-code-wrap,
@@ -602,18 +612,22 @@ meter::-webkit-meter-optimum-value {
   font-size: 0.8rem;
 }
 
-.connect-code-wrap textarea {
+.connect-code-line {
+  grid-template-columns: minmax(0, 1fr) minmax(132px, 0.38fr);
+}
+
+.connect-code-line input {
   width: 100%;
-  min-height: 116px;
-  padding: 12px;
-  resize: vertical;
+  min-height: 42px;
+  padding: 0 12px;
   color: var(--qrl-ink);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.78rem;
-  line-height: 1.45;
   border: 1px solid var(--qrl-line);
   border-radius: 8px;
   background: white;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .wallet-readout {
@@ -626,15 +640,20 @@ meter::-webkit-meter-optimum-value {
   background: white;
 }
 
-.wallet-readout strong {
+.wallet-readout strong,
+.wallet-readout b {
   overflow-wrap: anywhere;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.82rem;
 }
 
+.wallet-readout b {
+  color: #0c6245;
+}
+
 .connect-lab {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   margin-top: 16px;
 }
@@ -766,7 +785,11 @@ meter::-webkit-meter-optimum-value {
     grid-template-columns: 1fr;
   }
 
+  .connect-code-line {
+    grid-template-columns: 1fr;
+  }
+
   .connect-lab {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
   }
 }

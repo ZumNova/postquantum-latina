@@ -203,15 +203,14 @@
 
             <div class="connect-actions">
               <button class="primary-button" type="button" id="qrl-connect-button">Generar codigo</button>
-              <button class="secondary-button" type="button" id="qrl-request-accounts" disabled>Leer cuenta</button>
+              <button class="secondary-button" type="button" id="qrl-request-accounts" disabled>Conectar cuenta</button>
             </div>
 
             <div class="connect-code-wrap">
-              <label for="qrl-connect-code">Codigo para pegar en MyQRLWallet</label>
-              <textarea id="qrl-connect-code" readonly placeholder="qrlconnect://..."></textarea>
-              <div class="connect-actions">
+              <label for="qrl-connect-code">Codigo MyQRLWallet</label>
+              <div class="connect-code-line">
+                <input id="qrl-connect-code" readonly placeholder="qrlconnect://..." />
                 <button class="secondary-button" type="button" id="copy-qrl-code" disabled>Copiar codigo</button>
-                <a class="secondary-link" id="open-qrl-wallet" href="https://qrlwallet.com/dapp-sessions" target="_blank" rel="noreferrer">Abrir web wallet</a>
               </div>
             </div>
 
@@ -219,10 +218,10 @@
               <span>Cuenta conectada</span>
               <strong id="qrl-connected-account">Sin cuenta</strong>
               <small id="qrl-account-format">Formato pendiente</small>
+              <b id="qrl-balance-readout">Balance pendiente</b>
             </div>
 
             <div class="connect-lab">
-              <button class="secondary-button" type="button" id="qrl-read-chain" disabled>Leer chain</button>
               <button class="secondary-button" type="button" id="qrl-read-balance" disabled>Leer balance</button>
               <button class="secondary-button" type="button" id="qrl-sign-message" disabled>Firmar mensaje</button>
               <button class="secondary-button" type="button" id="qrl-send-self-test" disabled>Enviar 0.001 QRL</button>

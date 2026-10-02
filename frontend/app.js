@@ -41,10 +41,9 @@ const qrlConnectButton = document.querySelector("#qrl-connect-button");
 const qrlRequestAccounts = document.querySelector("#qrl-request-accounts");
 const qrlConnectCode = document.querySelector("#qrl-connect-code");
 const copyQrlCode = document.querySelector("#copy-qrl-code");
-const openQrlWallet = document.querySelector("#open-qrl-wallet");
 const qrlConnectedAccount = document.querySelector("#qrl-connected-account");
 const qrlAccountFormat = document.querySelector("#qrl-account-format");
-const qrlReadChain = document.querySelector("#qrl-read-chain");
+const qrlBalanceReadout = document.querySelector("#qrl-balance-readout");
 const qrlReadBalance = document.querySelector("#qrl-read-balance");
 const qrlSignMessage = document.querySelector("#qrl-sign-message");
 const qrlSendSelfTest = document.querySelector("#qrl-send-self-test");
@@ -100,11 +99,26 @@ function setConnectedQrlAccount(account) {
     : "Sin cuenta";
   qrlConnectedAccount.title = connectedQrlAccount;
   qrlAccountFormat.textContent = getQrlAddressFormat(connectedQrlAccount);
+  qrlBalanceReadout.textContent = connectedQrlAccount ? "Balance pendiente" : "Balance pendiente";
   const hasAccount = Boolean(connectedQrlAccount);
   approveTestButton.disabled = !hasAccount;
   qrlReadBalance.disabled = !hasAccount;
   qrlSignMessage.disabled = !hasAccount;
   qrlSendSelfTest.disabled = !hasAccount;
+}
+
+function formatNativeQrlBalance(hexValue) {
+  try {
+    const raw = BigInt(hexValue || "0x0");
+    const scale = 10n ** 18n;
+    const whole = raw / scale;
+    const fraction = raw % scale;
+    if (fraction === 0n) return `${whole.toString()} QRL`;
+    const decimals = fraction.toString().padStart(18, "0").slice(0, 6).replace(/0+$/, "");
+    return `${whole.toString()}.${decimals || "0"} QRL`;
+  } catch (error) {
+    return `${String(hexValue || "0x0")} QRL`;
+  }
 }
 
 function copyText(value) {
@@ -400,14 +414,12 @@ async function buildQrlProvider() {
   qrlProvider.on("connect", ({ chainId }) => {
     setConnectStatus(`Conectado ${chainId}`);
     qrlRequestAccounts.disabled = false;
-    qrlReadChain.disabled = false;
     appendQrlLog("connect", { chainId });
   });
 
   qrlProvider.on("disconnect", payload => {
     setConnectedQrlAccount("");
     qrlRequestAccounts.disabled = true;
-    qrlReadChain.disabled = true;
     setConnectStatus("Desconectado");
     appendQrlLog("disconnect", payload || "wallet desconectada");
   });
@@ -451,7 +463,6 @@ async function generateQrlConnectCode() {
     qrlConnectCode.value = uri;
     copyQrlCode.disabled = false;
     qrlRequestAccounts.disabled = false;
-    openQrlWallet.href = `https://qrlwallet.com/dapp-sessions#qrlconnect=${encodeURIComponent(uri)}`;
     setConnectStatus(provider.getStatus());
     appendQrlLog("pairing", {
       channelId: typeof provider.getChannelId === "function" ? provider.getChannelId() : "no disponible",
@@ -481,6 +492,7 @@ async function requestQrlAccounts() {
         account: formatQrlAddressFingerprint(localAccounts[0]),
         format: getQrlAddressFormat(localAccounts[0])
       });
+      await readQrlBalance({ silent: true });
       return;
     }
 
@@ -503,7 +515,12 @@ async function requestQrlAccounts() {
       first: connectedQrlAccount ? formatQrlAddressFingerprint(connectedQrlAccount) : null,
       format: getQrlAddressFormat(connectedQrlAccount)
     });
-    setConnectResult(connectedQrlAccount ? "Cuenta conectada. Ya podemos probar approve." : "La wallet no devolvio cuenta.");
+    if (connectedQrlAccount) {
+      await readQrlBalance({ silent: true });
+      setConnectResult("Cuenta conectada y balance actualizado.");
+    } else {
+      setConnectResult("La wallet no devolvio cuenta.");
+    }
   } catch (error) {
     console.error("QRL account request failed", error);
     setConnectResult(formatError(error));
@@ -527,17 +544,18 @@ async function readQrlChain() {
   }
 }
 
-async function readQrlBalance() {
+async function readQrlBalance(options = {}) {
   try {
     const provider = await buildQrlProvider();
     if (!connectedQrlAccount) throw new Error("Primero conecta y autoriza la cuenta.");
 
-    setConnectResult("Leyendo balance nativo de la cuenta conectada.");
+    if (!options.silent) setConnectResult("Leyendo balance nativo de la cuenta conectada.");
     const balance = await provider.request({
       method: "qrl_getBalance",
       params: [connectedQrlAccount, "latest"]
     });
-    setConnectResult(`Balance recibido: ${String(balance)}`);
+    qrlBalanceReadout.textContent = formatNativeQrlBalance(balance);
+    if (!options.silent) setConnectResult(`Balance recibido: ${String(balance)}`);
     appendQrlLog("qrl_getBalance", {
       account: formatQrlAddressFingerprint(connectedQrlAccount),
       format: getQrlAddressFormat(connectedQrlAccount),
@@ -545,7 +563,8 @@ async function readQrlBalance() {
     });
   } catch (error) {
     console.error("QRL balance read failed", error);
-    setConnectResult(formatError(error));
+    qrlBalanceReadout.textContent = "Balance no disponible";
+    if (!options.silent) setConnectResult(formatError(error));
     appendQrlLog("qrl_getBalance:error", formatError(error));
   }
 }
@@ -677,7 +696,6 @@ document.querySelector("#copy-sequence").addEventListener("click", async () => {
 
 qrlConnectButton.addEventListener("click", generateQrlConnectCode);
 qrlRequestAccounts.addEventListener("click", requestQrlAccounts);
-qrlReadChain.addEventListener("click", readQrlChain);
 qrlReadBalance.addEventListener("click", readQrlBalance);
 qrlSignMessage.addEventListener("click", signQrlMessage);
 qrlSendSelfTest.addEventListener("click", sendQrlSelfTest);
