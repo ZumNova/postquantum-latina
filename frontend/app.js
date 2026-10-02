@@ -641,6 +641,23 @@ async function callQrlatSymbol() {
       data: call.data
     });
 
+    const code = await provider.request({
+      method: "qrl_getCode",
+      params: [readAddress, "latest"]
+    });
+
+    appendQrlLog("qrl_getCode:QRLAT", {
+      address: readAddress,
+      hasCode: Boolean(code && code !== "0x"),
+      codeLength: typeof code === "string" ? code.length : 0
+    });
+
+    if (!code || code === "0x") {
+      setConnectResult("QRLAT no tiene bytecode en la direccion QIP-55 probada.");
+      appendQrlLog("qrl_call:QRLAT.symbol:skipped", "Sin bytecode en la direccion expandida.");
+      return;
+    }
+
     const result = await provider.request({
       method: "qrl_call",
       params: [call, "latest"]
