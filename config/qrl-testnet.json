@@ -14,7 +14,8 @@
     }
   },
   "wallets": {
-    "myQrlWallet": "QeAf837076B1057cf62b2BB7b39383bfcD4504B81"
+    "myQrlWallet": "QeAf837076B1057cf62b2BB7b39383bfcD4504B81",
+    "myQrlWalletQip55": "Qeaf837076B1057cf62B2Bb7b39383bfcD4504B818F66fBEa36778852fE682Fbf954773b66B76ab1e317504c13B531dd4760df598120e0c667C514A6d792DEaf2"
   },
   "contracts": {
     "pqdToken": "Qa365cc5d87447b56e1f637bf4252e5859f9b8f4d",

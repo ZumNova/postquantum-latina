@@ -8,6 +8,7 @@ function publicConfig() {
     provider: process.env.QRL_PROVIDER || process.env.QRL_RPC_URL || config.provider,
     chainId: config.chainId,
     wallet: process.env.CHECK_WALLET_ADDRESS || config.wallets.myQrlWallet,
+    wallets: config.wallets,
     tokens: config.tokens,
     protocols: config.protocols,
     contracts: config.contracts
