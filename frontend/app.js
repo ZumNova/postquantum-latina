@@ -110,6 +110,11 @@ function copyText(value) {
   return Promise.resolve();
 }
 
+function utf8ToHex(value) {
+  const bytes = new TextEncoder().encode(value);
+  return `0x${Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("")}`;
+}
+
 function compactBalance(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return value || "0";
@@ -552,11 +557,12 @@ async function signQrlMessage() {
     setConnectResult("Solicitud de firma enviada. Confirma en MyQRLWallet.");
     const signature = await provider.request({
       method: "qrl_signMessage",
-      params: [{ from: connectedQrlAccount, message }]
+      params: [connectedQrlAccount, utf8ToHex(message)]
     });
     setConnectResult("Mensaje firmado. Revisa el log RPC.");
     appendQrlLog("qrl_signMessage", {
       signer: formatQrlAddressFingerprint(connectedQrlAccount),
+      messageHex: utf8ToHex(message),
       response: signature
     });
   } catch (error) {
