@@ -1,6 +1,6 @@
 # QRLatina Frontend
 
-Prototipo para visualizar el mini factory, contratos desplegados, pares on-chain y swaps simulados entre `QRLAT`, `QETH`, `QZD`, `WQRL` y `QRL`.
+Prototipo QRL Connect para leer wallet QIP-55, saldo nativo QRL y tokens nuevos desplegados desde MyQRLWallet. El token activo de prueba es `LEQRL`.
 
 Modo cableado a QRL testnet:
 

@@ -1,12 +1,9 @@
 const tokenMeta = {
-  QRLAT: { priceHint: 1, seedLiquidityUsd: 1000 },
-  QETH: { priceHint: 1, seedLiquidityUsd: 1000 },
-  QZD: { priceHint: 0.25, seedLiquidityUsd: 1000 },
-  WQRL: { priceHint: 0.77, seedLiquidityUsd: 770 },
+  LEQRL: { priceHint: 1, seedLiquidityUsd: 0 },
   QRL: { priceHint: 0.77, seedLiquidityUsd: 770 }
 };
 
-const tokenOrder = ["QRLAT", "QETH", "QZD", "WQRL", "QRL"];
+const tokenOrder = ["LEQRL", "QRL"];
 const pools = buildPools(tokenOrder);
 
 const amountIn = document.querySelector("#amount-in");
@@ -25,10 +22,7 @@ const blockLabel = document.querySelector("#block-label");
 const marketsCount = document.querySelector("#markets-count");
 const marketsLabel = document.querySelector("#markets-label");
 const balanceQrl = document.querySelector("#balance-qrl");
-const balanceQrlat = document.querySelector("#balance-qrlat");
-const balanceQeth = document.querySelector("#balance-qeth");
-const balanceWqrl = document.querySelector("#balance-wqrl");
-const balanceQzd = document.querySelector("#balance-qzd");
+const balanceLeqrl = document.querySelector("#balance-leqrl");
 const pairStatus = document.querySelector("#pair-status");
 const marketStrip = document.querySelector("#market-strip");
 const contractList = document.querySelector("#contract-list");
@@ -49,9 +43,6 @@ const qrlReadBalance = document.querySelector("#qrl-read-balance");
 const qrlCallQrlat = document.querySelector("#qrl-call-qrlat");
 const qrlSignMessage = document.querySelector("#qrl-sign-message");
 const qrlSendSelfTest = document.querySelector("#qrl-send-self-test");
-const qrlDeployToken = document.querySelector("#qrl-deploy-token");
-const approveTokenSelect = document.querySelector("#approve-token-select");
-const approveTestButton = document.querySelector("#approve-test-button");
 const qrlConnectResult = document.querySelector("#qrl-connect-result");
 const qrlConnectLog = document.querySelector("#qrl-connect-log");
 const clearQrlLog = document.querySelector("#clear-qrl-log");
@@ -104,12 +95,10 @@ function setConnectedQrlAccount(account) {
   qrlAccountFormat.textContent = getQrlAddressFormat(connectedQrlAccount);
   qrlBalanceReadout.textContent = connectedQrlAccount ? "Balance pendiente" : "Balance pendiente";
   const hasAccount = Boolean(connectedQrlAccount);
-  approveTestButton.disabled = !hasAccount;
   qrlReadBalance.disabled = !hasAccount;
   qrlCallQrlat.disabled = !hasAccount;
   qrlSignMessage.disabled = !hasAccount;
   qrlSendSelfTest.disabled = !hasAccount;
-  qrlDeployToken.disabled = !hasAccount;
 }
 
 function formatNativeQrlBalance(hexValue) {
@@ -123,6 +112,21 @@ function formatNativeQrlBalance(hexValue) {
     return `${whole.toString()}.${decimals || "0"} QRL`;
   } catch (error) {
     return `${String(hexValue || "0x0")} QRL`;
+  }
+}
+
+function formatTokenUnits(rawValue, decimals = 18, symbol = "") {
+  try {
+    const raw = BigInt(rawValue || "0");
+    const scale = 10n ** BigInt(decimals);
+    const whole = raw / scale;
+    const fraction = raw % scale;
+    const suffix = symbol ? ` ${symbol}` : "";
+    if (fraction === 0n) return `${whole.toString()}${suffix}`;
+    const decimalText = fraction.toString().padStart(decimals, "0").slice(0, 6).replace(/0+$/, "");
+    return `${whole.toString()}.${decimalText || "0"}${suffix}`;
+  } catch (error) {
+    return `${String(rawValue || "0")} ${symbol}`.trim();
   }
 }
 
@@ -175,6 +179,17 @@ function decodeAbiUint(hexValue) {
   const clean = String(hexValue || "").replace(/^0x/, "");
   if (!clean) return "0";
   return BigInt(`0x${clean}`).toString();
+}
+
+function encodeQip55AddressArg(address) {
+  if (!/^Q[0-9a-fA-F]{128}$/.test(address || "")) {
+    throw new Error(`Direccion QIP-55 invalida para calldata: ${address || "vacia"}`);
+  }
+  return address.slice(1);
+}
+
+function encodeBalanceOfCalldata(account) {
+  return `0x70a08231${encodeQip55AddressArg(account)}`;
 }
 
 function compactBalance(value) {
@@ -243,7 +258,7 @@ function quote(amount, reserveIn, reserveOut) {
 
 function updateQuote() {
   if (tokenIn.value === tokenOut.value) {
-    tokenOut.value = tokenOrder.find(symbol => symbol !== tokenIn.value) || "QETH";
+    tokenOut.value = tokenOrder.find(symbol => symbol !== tokenIn.value) || "QRL";
   }
 
   const pool = getPool(tokenIn.value, tokenOut.value);
@@ -263,8 +278,8 @@ function updateQuote() {
     feePaid.textContent = `0 ${tokenIn.value}`;
     pairStatus.textContent = "Sin liquidez";
     lockedValue.textContent = `$${formatAmount(totalLockedUsd(), 2)}`;
-    qethRatio.textContent = formatAmount(getSpot("QRLAT", "QETH"), 4);
-    wqrlRatio.textContent = formatAmount(getSpot("QRLAT", "WQRL"), 4);
+    qethRatio.textContent = "pendiente";
+    wqrlRatio.textContent = "sin deploy";
     return;
   }
 
@@ -280,8 +295,8 @@ function updateQuote() {
   feePaid.textContent = `${formatAmount(value * 0.003, 6)} ${tokenIn.value}`;
   pairStatus.textContent = pool.status === "live" ? "On-chain" : "Simulado";
   lockedValue.textContent = `$${formatAmount(totalLockedUsd(), 2)}`;
-  qethRatio.textContent = formatAmount(getSpot("QRLAT", "QETH"), 4);
-  wqrlRatio.textContent = formatAmount(getSpot("QRLAT", "WQRL"), 4);
+  qethRatio.textContent = "pendiente";
+  wqrlRatio.textContent = "sin deploy";
 }
 
 function getSpot(inputSymbol, outputSymbol) {
@@ -318,13 +333,19 @@ function renderContracts(amm) {
     ["Factory", amm.factory],
     ["Router", amm.router],
     ["Lens", amm.lens]
-  ];
+  ].filter(([, address]) => Boolean(address));
 
   ammMode.textContent = amm.factoryMode || "on-chain";
   factoryModeLabel.textContent =
-    amm.factoryMode === "static-constructor-loaded" ? "Factory estatica con 6 pares reales" : "Factory desplegada";
+    amm.factoryMode === "qip55-token-discovery" ? "Sin factory QIP-55" : "Factory desplegada";
 
   contractList.innerHTML = "";
+  if (!contracts.length) {
+    const row = document.createElement("div");
+    row.className = "copy-row";
+    row.innerHTML = "<span>AMM QIP-55</span><strong>pendiente</strong>";
+    contractList.appendChild(row);
+  }
   contracts.forEach(([label, address]) => {
     const row = document.createElement("button");
     row.type = "button";
@@ -338,6 +359,12 @@ function renderContracts(amm) {
   const entries = Object.entries(amm.pairs || {});
   pairCountLabel.textContent = String(entries.length);
   pairList.innerHTML = "";
+  if (!entries.length) {
+    const item = document.createElement("div");
+    item.className = "pair-row";
+    item.innerHTML = "<span>Sin pares</span><strong>esperando tokens QIP-55</strong><em>pendiente</em>";
+    pairList.appendChild(item);
+  }
 
   entries.forEach(([label, address]) => {
     const item = document.createElement("button");
@@ -362,25 +389,6 @@ function renderContracts(amm) {
   marketsCount.textContent = String(entries.length);
   marketsLabel.textContent = "Pares on-chain";
   updateQuote();
-}
-
-function qAddressToHexAddress(address) {
-  if (!/^Q[0-9a-fA-F]{40}$/.test(address || "")) {
-    throw new Error(`Direccion Q invalida: ${address || "vacia"}`);
-  }
-
-  return `0x${address.slice(1)}`;
-}
-
-function padAbiWord(hexValue) {
-  return hexValue.replace(/^0x/, "").padStart(64, "0");
-}
-
-function encodeApproveCalldata(spender, amountWei) {
-  const selector = "095ea7b3";
-  const spenderWord = padAbiWord(qAddressToHexAddress(spender));
-  const amountWord = BigInt(amountWei).toString(16).padStart(64, "0");
-  return `0x${selector}${spenderWord}${amountWord}`;
 }
 
 function setConnectStatus(status) {
@@ -414,11 +422,6 @@ function withTimeout(promise, milliseconds, timeoutMessage) {
   });
 
   return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timeoutId));
-}
-
-function addGasMargin(hexQuantity, marginPercent = 20n) {
-  const gas = BigInt(hexQuantity || "0x0");
-  return `0x${((gas * (100n + marginPercent)) / 100n).toString(16)}`;
 }
 
 async function loadPublicConfig() {
@@ -600,24 +603,65 @@ async function readQrlBalance(options = {}) {
     const provider = await buildQrlProvider();
     if (!connectedQrlAccount) throw new Error("Primero conecta y autoriza la cuenta.");
 
-    if (!options.silent) setConnectResult("Leyendo balance nativo de la cuenta conectada.");
+    if (!options.silent) setConnectResult("Leyendo balance QRL y LEQRL de la cuenta conectada.");
     const balance = await provider.request({
       method: "qrl_getBalance",
       params: [connectedQrlAccount, "latest"]
     });
-    qrlBalanceReadout.textContent = formatNativeQrlBalance(balance);
-    if (!options.silent) setConnectResult(`Balance recibido: ${String(balance)}`);
+    const leqrl = await readLeqrlBalance(provider);
+    const qrlText = formatNativeQrlBalance(balance);
+    const leqrlText = leqrl ? formatTokenUnits(leqrl.raw, leqrl.decimals, "LEQRL") : "LEQRL no disponible";
+
+    qrlBalanceReadout.textContent = `${qrlText} | ${leqrlText}`;
+    balanceQrl.textContent = qrlText.replace(" QRL", "");
+    balanceLeqrl.textContent = leqrl ? leqrlText.replace(" LEQRL", "") : "...";
+
+    if (!options.silent) setConnectResult(`Balance recibido: ${qrlText} / ${leqrlText}`);
     appendQrlLog("qrl_getBalance", {
       account: formatQrlAddressFingerprint(connectedQrlAccount),
       format: getQrlAddressFormat(connectedQrlAccount),
       balance
     });
+    if (leqrl) {
+      appendQrlLog("qrl_call:LEQRL.balanceOf", {
+        account: formatQrlAddressFingerprint(connectedQrlAccount),
+        token: leqrl.address,
+        raw: leqrl.raw,
+        formatted: leqrlText
+      });
+    }
   } catch (error) {
     console.error("QRL balance read failed", error);
     qrlBalanceReadout.textContent = "Balance no disponible";
     if (!options.silent) setConnectResult(formatError(error));
     appendQrlLog("qrl_getBalance:error", formatError(error));
   }
+}
+
+async function readLeqrlBalance(provider) {
+  const config = await loadPublicConfig();
+  const token = config.tokens.LEQRL;
+  if (!token || !token.address) return null;
+
+  const tokenAddress = qAddressToQip55ReadAddress(token.address);
+  const raw = await provider.request({
+    method: "qrl_call",
+    params: [
+      {
+        from: connectedQrlAccount,
+        to: tokenAddress,
+        data: encodeBalanceOfCalldata(connectedQrlAccount)
+      },
+      "latest"
+    ]
+  });
+
+  return {
+    address: tokenAddress,
+    raw: decodeAbiUint(raw),
+    rawResponse: raw,
+    decimals: token.decimals || 18
+  };
 }
 
 async function signQrlMessage() {
@@ -766,134 +810,6 @@ async function sendQrlSelfTest() {
   }
 }
 
-async function deployQip55TestToken() {
-  try {
-    const provider = await buildQrlProvider();
-    if (!connectedQrlAccount) throw new Error("Primero conecta y autoriza la cuenta.");
-
-    qrlDeployToken.disabled = true;
-    setConnectResult("Preparando bytecode de QRLATX para deploy.");
-
-    const response = await fetch("/api/prepare-token-deploy?name=QRLatina%20Test%20Token&symbol=QRLATX&supply=1000000", {
-      cache: "no-store"
-    });
-    const payload = await response.json();
-    if (!response.ok || !payload.ok) {
-      throw new Error(payload.error || "No pude preparar el deploy del token.");
-    }
-
-    const tx = {
-      from: connectedQrlAccount,
-      value: "0x0",
-      data: payload.data
-    };
-
-    appendQrlLog("qrl_sendTransaction:deployToken:request", {
-      from: formatQrlAddressFingerprint(tx.from),
-      contract: payload.contract,
-      name: payload.name,
-      symbol: payload.symbol,
-      supply: payload.supply,
-      dataBytes: Math.floor((payload.data.length - 2) / 2)
-    });
-
-    const estimatedGas = await provider.request({
-      method: "qrl_estimateGas",
-      params: [tx]
-    });
-    tx.gas = addGasMargin(estimatedGas);
-    appendQrlLog("qrl_estimateGas:deployToken", {
-      estimatedGas,
-      gasWithMargin: tx.gas
-    });
-
-    setConnectResult("Deploy enviado a MyQRLWallet. Confirma la creacion del contrato.");
-    const txHash = await provider.request({
-      method: "qrl_sendTransaction",
-      params: [tx]
-    });
-
-    setConnectResult(`Deploy enviado: ${txHash}`);
-    appendQrlLog("qrl_sendTransaction:deployToken", { txHash });
-
-    window.setTimeout(() => readDeployReceipt(txHash), 8000);
-  } catch (error) {
-    console.error("QRL token deploy failed", error);
-    setConnectResult(formatError(error));
-    appendQrlLog("qrl_sendTransaction:deployToken:error", formatError(error));
-  } finally {
-    qrlDeployToken.disabled = !connectedQrlAccount;
-  }
-}
-
-async function readDeployReceipt(txHash) {
-  try {
-    const provider = await buildQrlProvider();
-    const receipt = await provider.request({
-      method: "qrl_getTransactionReceipt",
-      params: [txHash]
-    });
-
-    appendQrlLog("qrl_getTransactionReceipt:deployToken", receipt || "Receipt pendiente");
-
-    const contractAddress = receipt && (receipt.contractAddress || receipt.contract_address);
-
-    if (contractAddress) {
-      setConnectResult(`Token desplegado: ${contractAddress}`);
-      const code = await provider.request({
-        method: "qrl_getCode",
-        params: [contractAddress, "latest"]
-      });
-      appendQrlLog("qrl_getCode:deployedToken", {
-        address: contractAddress,
-        hasCode: Boolean(code && code !== "0x"),
-        codeLength: typeof code === "string" ? code.length : 0
-      });
-      return;
-    }
-
-    setConnectResult("Deploy enviado. Receipt aun pendiente; revisa el hash en ZondScan.");
-  } catch (error) {
-    appendQrlLog("qrl_getTransactionReceipt:deployToken:error", formatError(error));
-  }
-}
-
-async function sendApproveTest() {
-  try {
-    const provider = await buildQrlProvider();
-    const config = await loadPublicConfig();
-    const amm = config.contracts.qrLatinaAmm;
-    const tokenSymbol = approveTokenSelect.value;
-    const token = config.tokens[tokenSymbol];
-
-    if (!connectedQrlAccount) throw new Error("Primero conecta y autoriza la cuenta.");
-    if (!amm || !amm.router) throw new Error("Router AMM no configurado.");
-    if (!token || !token.address) throw new Error(`Token ${tokenSymbol} no configurado.`);
-
-    const amount = "1000000000000000";
-    const tx = {
-      from: connectedQrlAccount,
-      to: token.address,
-      value: "0x0",
-      data: encodeApproveCalldata(amm.router, amount)
-    };
-
-    approveTestButton.disabled = true;
-    setConnectResult(`Enviando approve minimo de ${tokenSymbol}. Confirma en MyQRLWallet.`);
-    const txHash = await provider.request({
-      method: "qrl_sendTransaction",
-      params: [tx]
-    });
-
-    setConnectResult(`Approve enviado: ${txHash}`);
-  } catch (error) {
-    console.error("QRL approve test failed", error);
-    setConnectResult(formatError(error));
-  } finally {
-    approveTestButton.disabled = !connectedQrlAccount;
-  }
-}
-
 document.querySelectorAll("[data-view]").forEach(button => {
   button.addEventListener("click", () => {
     document.querySelectorAll("[data-view]").forEach(item => item.classList.remove("active"));
@@ -916,7 +832,7 @@ document.querySelector("#flip-pair").addEventListener("click", () => {
 });
 
 document.querySelector("#copy-sequence").addEventListener("click", async () => {
-  const sequence = "WQRL -> Factory -> Router -> QRLAT/QETH -> QRLAT/WQRL";
+  const sequence = "LEQRL -> nuevos tokens QIP-55 -> WQRL -> Factory -> Router -> pares";
   if (navigator.clipboard) {
     await navigator.clipboard.writeText(sequence);
   }
@@ -928,7 +844,6 @@ qrlReadBalance.addEventListener("click", readQrlBalance);
 qrlCallQrlat.addEventListener("click", callQrlatSymbol);
 qrlSignMessage.addEventListener("click", signQrlMessage);
 qrlSendSelfTest.addEventListener("click", sendQrlSelfTest);
-qrlDeployToken.addEventListener("click", deployQip55TestToken);
 copyQrlCode.addEventListener("click", async () => {
   await copyText(qrlConnectCode.value);
   setConnectResult("Codigo copiado.");
@@ -936,7 +851,6 @@ copyQrlCode.addEventListener("click", async () => {
 clearQrlLog.addEventListener("click", () => {
   qrlConnectLog.textContent = "Sin eventos todavia.";
 });
-approveTestButton.addEventListener("click", sendApproveTest);
 
 amountIn.addEventListener("input", updateQuote);
 tokenIn.addEventListener("change", updateQuote);
@@ -964,10 +878,7 @@ async function loadLiveAssets() {
     marketsCount.textContent = String(Object.keys(pools).length);
     marketsLabel.textContent = "Rutas cargadas";
     balanceQrl.textContent = compactBalance(payload.native.balance);
-    balanceQrlat.textContent = compactBalance(tokenBySymbol.QRLAT && tokenBySymbol.QRLAT.balance);
-    balanceQeth.textContent = compactBalance(tokenBySymbol.QETH && tokenBySymbol.QETH.balance);
-    balanceWqrl.textContent = compactBalance(tokenBySymbol.WQRL && tokenBySymbol.WQRL.balance);
-    balanceQzd.textContent = compactBalance(tokenBySymbol.QZD && tokenBySymbol.QZD.balance);
+    balanceLeqrl.textContent = compactBalance(tokenBySymbol.LEQRL && tokenBySymbol.LEQRL.balance);
   } catch (error) {
     walletLabel.textContent = "API offline";
     networkState.textContent = "Demo";

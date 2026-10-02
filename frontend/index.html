@@ -64,13 +64,13 @@
         <section class="metrics-grid" aria-label="Estado">
           <article class="metric">
             <span>Valor bloqueado</span>
-            <strong id="locked-value">$1,546.00</strong>
-            <small>QRLAT/QETH + QRLAT/WQRL</small>
+            <strong id="locked-value">$0.00</strong>
+            <small>AMM QIP-55 pendiente</small>
           </article>
           <article class="metric">
             <span>Mercados</span>
-            <strong id="markets-count">2</strong>
-            <small id="markets-label">Iniciales</small>
+            <strong id="markets-count">0</strong>
+            <small id="markets-label">Esperando tokens</small>
           </article>
           <article class="metric">
             <span>Fee</span>
@@ -98,29 +98,29 @@
               <li class="done">
                 <span></span>
                 <div>
-                  <strong>WQRL</strong>
-                  <small>Wrapper de QRL nativo</small>
+                  <strong>LEQRL</strong>
+                  <small>Token QIP-55 validado</small>
+                </div>
+              </li>
+              <li class="done">
+                <span></span>
+                <div>
+                  <strong>Tokens nuevos</strong>
+                  <small>Esperando los proximos QIP-55</small>
                 </div>
               </li>
               <li class="done">
                 <span></span>
                 <div>
                   <strong>Factory</strong>
-                  <small>Crea pares QRC20</small>
-                </div>
-              </li>
-              <li class="done">
-                <span></span>
-                <div>
-                  <strong>Router</strong>
-                  <small>Liquidez y swaps</small>
+                  <small>Pendiente de deploy limpio</small>
                 </div>
               </li>
               <li class="done">
                 <span></span>
                 <div>
                   <strong>Primeros mercados</strong>
-                  <small id="factory-mode-label">Factory estatica con pares reales</small>
+                  <small id="factory-mode-label">Sin pares activos</small>
                 </div>
               </li>
               <li>
@@ -147,10 +147,7 @@
               <div class="amount-row">
                 <input id="amount-in" type="number" min="0" step="0.01" value="10" />
                 <select id="token-in" aria-label="Token de entrada">
-                  <option value="QRLAT">QRLAT</option>
-                  <option value="QETH">QETH</option>
-                  <option value="QZD">QZD</option>
-                  <option value="WQRL">WQRL</option>
+                  <option value="LEQRL">LEQRL</option>
                   <option value="QRL">QRL</option>
                 </select>
               </div>
@@ -163,11 +160,8 @@
               <div class="amount-row">
                 <input id="amount-out" type="text" readonly />
                 <select id="token-out" aria-label="Token de salida">
-                  <option value="QETH">QETH</option>
-                  <option value="QRLAT">QRLAT</option>
-                  <option value="QZD">QZD</option>
-                  <option value="WQRL">WQRL</option>
                   <option value="QRL">QRL</option>
+                  <option value="LEQRL">LEQRL</option>
                 </select>
               </div>
             </div>
@@ -177,7 +171,7 @@
             <dl class="quote-list">
               <div>
                 <dt>Precio spot</dt>
-                <dd id="spot-price">1 QRLAT = 1 QETH</dd>
+                <dd id="spot-price">Sin par activo</dd>
               </div>
               <div>
                 <dt>Impacto</dt>
@@ -185,7 +179,7 @@
               </div>
               <div>
                 <dt>Fee estimado</dt>
-                <dd id="fee-paid">0.0300 QRLAT</dd>
+                <dd id="fee-paid">0 LEQRL</dd>
               </div>
             </dl>
 
@@ -225,7 +219,6 @@
               <label for="qrl-read-token-select">Lectura de token</label>
               <select id="qrl-read-token-select">
                 <option value="LEQRL">LEQRL - legal</option>
-                <option value="QRLAT">QRLAT - legacy</option>
               </select>
               <button class="secondary-button" type="button" id="qrl-call-qrlat" disabled>Leer token</button>
             </div>
@@ -234,20 +227,9 @@
               <button class="secondary-button" type="button" id="qrl-read-balance" disabled>Leer balance</button>
               <button class="secondary-button" type="button" id="qrl-sign-message" disabled>Firmar mensaje</button>
               <button class="secondary-button" type="button" id="qrl-send-self-test" disabled>Enviar 0.001 QRL</button>
-              <button class="primary-button" type="button" id="qrl-deploy-token" disabled>Deploy token test</button>
             </div>
 
-            <div class="approve-test">
-              <label for="approve-token-select">Prueba write</label>
-              <select id="approve-token-select">
-                <option value="QRLAT">QRLAT -> Router</option>
-                <option value="QETH">QETH -> Router</option>
-                <option value="QZD">QZD -> Router</option>
-                <option value="WQRL">WQRL -> Router</option>
-              </select>
-              <button class="primary-button" type="button" id="approve-test-button" disabled>Probar approve minimo</button>
-              <p class="connect-result" id="qrl-connect-result">Esperando pairing.</p>
-            </div>
+            <p class="connect-result" id="qrl-connect-result">Esperando pairing.</p>
 
             <div class="connect-log-wrap">
               <div class="pair-list-heading">
@@ -269,37 +251,27 @@
 
             <div class="oracle-bars">
               <div>
-                <span>QRLAT/QETH</span>
-                <b id="qeth-ratio">1.0000</b>
+                <span>LEQRL/QRL</span>
+                <b id="qeth-ratio">pendiente</b>
               </div>
               <meter min="0" max="100" value="52"></meter>
               <div>
-                <span>QRLAT/WQRL</span>
-                <b id="wqrl-ratio">0.0100</b>
+                <span>AMM</span>
+                <b id="wqrl-ratio">sin deploy</b>
               </div>
               <meter min="0" max="100" value="28"></meter>
             </div>
 
             <div class="locked-table">
               <div>
-                <span>QRLAT</span>
-                <strong id="balance-qrlat">...</strong>
-              </div>
-              <div>
-                <span>QETH</span>
-                <strong id="balance-qeth">...</strong>
+                <span>LEQRL</span>
+                <strong id="balance-leqrl">...</strong>
               </div>
               <div>
                 <span>QRL</span>
                 <strong id="balance-qrl">...</strong>
               </div>
               <div>
-                <span>WQRL</span>
-                <strong id="balance-wqrl">...</strong>
-              </div>
-              <div>
-                <span>QZD</span>
-                <strong id="balance-qzd">...</strong>
               </div>
             </div>
           </section>
