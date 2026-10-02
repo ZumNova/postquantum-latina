@@ -47,6 +47,7 @@ const qrlAccountFormat = document.querySelector("#qrl-account-format");
 const qrlReadChain = document.querySelector("#qrl-read-chain");
 const qrlReadBalance = document.querySelector("#qrl-read-balance");
 const qrlSignMessage = document.querySelector("#qrl-sign-message");
+const qrlSendSelfTest = document.querySelector("#qrl-send-self-test");
 const approveTokenSelect = document.querySelector("#approve-token-select");
 const approveTestButton = document.querySelector("#approve-test-button");
 const qrlConnectResult = document.querySelector("#qrl-connect-result");
@@ -103,6 +104,7 @@ function setConnectedQrlAccount(account) {
   approveTestButton.disabled = !hasAccount;
   qrlReadBalance.disabled = !hasAccount;
   qrlSignMessage.disabled = !hasAccount;
+  qrlSendSelfTest.disabled = !hasAccount;
 }
 
 function copyText(value) {
@@ -572,6 +574,43 @@ async function signQrlMessage() {
   }
 }
 
+async function sendQrlSelfTest() {
+  try {
+    const provider = await buildQrlProvider();
+    if (!connectedQrlAccount) throw new Error("Primero conecta y autoriza la cuenta.");
+
+    const value = "0x38d7ea4c68000"; // 0.001 QRL with 18 decimals.
+    const tx = {
+      from: connectedQrlAccount,
+      to: connectedQrlAccount,
+      value,
+      data: "0x"
+    };
+
+    qrlSendSelfTest.disabled = true;
+    setConnectResult("Enviando prueba de 0.001 QRL a tu misma cuenta. Confirma en MyQRLWallet.");
+    appendQrlLog("qrl_sendTransaction:self:request", {
+      from: formatQrlAddressFingerprint(tx.from),
+      to: formatQrlAddressFingerprint(tx.to),
+      value
+    });
+
+    const txHash = await provider.request({
+      method: "qrl_sendTransaction",
+      params: [tx]
+    });
+
+    setConnectResult(`Transaccion enviada: ${txHash}`);
+    appendQrlLog("qrl_sendTransaction:self", { txHash });
+  } catch (error) {
+    console.error("QRL self transaction failed", error);
+    setConnectResult(formatError(error));
+    appendQrlLog("qrl_sendTransaction:self:error", formatError(error));
+  } finally {
+    qrlSendSelfTest.disabled = !connectedQrlAccount;
+  }
+}
+
 async function sendApproveTest() {
   try {
     const provider = await buildQrlProvider();
@@ -641,6 +680,7 @@ qrlRequestAccounts.addEventListener("click", requestQrlAccounts);
 qrlReadChain.addEventListener("click", readQrlChain);
 qrlReadBalance.addEventListener("click", readQrlBalance);
 qrlSignMessage.addEventListener("click", signQrlMessage);
+qrlSendSelfTest.addEventListener("click", sendQrlSelfTest);
 copyQrlCode.addEventListener("click", async () => {
   await copyText(qrlConnectCode.value);
   setConnectResult("Codigo copiado.");
