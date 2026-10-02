@@ -48,6 +48,7 @@ const qrlReadBalance = document.querySelector("#qrl-read-balance");
 const qrlCallQrlat = document.querySelector("#qrl-call-qrlat");
 const qrlSignMessage = document.querySelector("#qrl-sign-message");
 const qrlSendSelfTest = document.querySelector("#qrl-send-self-test");
+const qrlDeployToken = document.querySelector("#qrl-deploy-token");
 const approveTokenSelect = document.querySelector("#approve-token-select");
 const approveTestButton = document.querySelector("#approve-test-button");
 const qrlConnectResult = document.querySelector("#qrl-connect-result");
@@ -107,6 +108,7 @@ function setConnectedQrlAccount(account) {
   qrlCallQrlat.disabled = !hasAccount;
   qrlSignMessage.disabled = !hasAccount;
   qrlSendSelfTest.disabled = !hasAccount;
+  qrlDeployToken.disabled = !hasAccount;
 }
 
 function formatNativeQrlBalance(hexValue) {
@@ -390,6 +392,11 @@ function withTimeout(promise, milliseconds, timeoutMessage) {
   });
 
   return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timeoutId));
+}
+
+function addGasMargin(hexQuantity, marginPercent = 20n) {
+  const gas = BigInt(hexQuantity || "0x0");
+  return `0x${((gas * (100n + marginPercent)) / 100n).toString(16)}`;
 }
 
 async function loadPublicConfig() {
@@ -712,6 +719,98 @@ async function sendQrlSelfTest() {
   }
 }
 
+async function deployQip55TestToken() {
+  try {
+    const provider = await buildQrlProvider();
+    if (!connectedQrlAccount) throw new Error("Primero conecta y autoriza la cuenta.");
+
+    qrlDeployToken.disabled = true;
+    setConnectResult("Preparando bytecode de QRLATX para deploy.");
+
+    const response = await fetch("/api/prepare-token-deploy?name=QRLatina%20Test%20Token&symbol=QRLATX&supply=1000000", {
+      cache: "no-store"
+    });
+    const payload = await response.json();
+    if (!response.ok || !payload.ok) {
+      throw new Error(payload.error || "No pude preparar el deploy del token.");
+    }
+
+    const tx = {
+      from: connectedQrlAccount,
+      value: "0x0",
+      data: payload.data
+    };
+
+    appendQrlLog("qrl_sendTransaction:deployToken:request", {
+      from: formatQrlAddressFingerprint(tx.from),
+      contract: payload.contract,
+      name: payload.name,
+      symbol: payload.symbol,
+      supply: payload.supply,
+      dataBytes: Math.floor((payload.data.length - 2) / 2)
+    });
+
+    const estimatedGas = await provider.request({
+      method: "qrl_estimateGas",
+      params: [tx]
+    });
+    tx.gas = addGasMargin(estimatedGas);
+    appendQrlLog("qrl_estimateGas:deployToken", {
+      estimatedGas,
+      gasWithMargin: tx.gas
+    });
+
+    setConnectResult("Deploy enviado a MyQRLWallet. Confirma la creacion del contrato.");
+    const txHash = await provider.request({
+      method: "qrl_sendTransaction",
+      params: [tx]
+    });
+
+    setConnectResult(`Deploy enviado: ${txHash}`);
+    appendQrlLog("qrl_sendTransaction:deployToken", { txHash });
+
+    window.setTimeout(() => readDeployReceipt(txHash), 8000);
+  } catch (error) {
+    console.error("QRL token deploy failed", error);
+    setConnectResult(formatError(error));
+    appendQrlLog("qrl_sendTransaction:deployToken:error", formatError(error));
+  } finally {
+    qrlDeployToken.disabled = !connectedQrlAccount;
+  }
+}
+
+async function readDeployReceipt(txHash) {
+  try {
+    const provider = await buildQrlProvider();
+    const receipt = await provider.request({
+      method: "qrl_getTransactionReceipt",
+      params: [txHash]
+    });
+
+    appendQrlLog("qrl_getTransactionReceipt:deployToken", receipt || "Receipt pendiente");
+
+    const contractAddress = receipt && (receipt.contractAddress || receipt.contract_address);
+
+    if (contractAddress) {
+      setConnectResult(`Token desplegado: ${contractAddress}`);
+      const code = await provider.request({
+        method: "qrl_getCode",
+        params: [contractAddress, "latest"]
+      });
+      appendQrlLog("qrl_getCode:deployedToken", {
+        address: contractAddress,
+        hasCode: Boolean(code && code !== "0x"),
+        codeLength: typeof code === "string" ? code.length : 0
+      });
+      return;
+    }
+
+    setConnectResult("Deploy enviado. Receipt aun pendiente; revisa el hash en ZondScan.");
+  } catch (error) {
+    appendQrlLog("qrl_getTransactionReceipt:deployToken:error", formatError(error));
+  }
+}
+
 async function sendApproveTest() {
   try {
     const provider = await buildQrlProvider();
@@ -782,6 +881,7 @@ qrlReadBalance.addEventListener("click", readQrlBalance);
 qrlCallQrlat.addEventListener("click", callQrlatSymbol);
 qrlSignMessage.addEventListener("click", signQrlMessage);
 qrlSendSelfTest.addEventListener("click", sendQrlSelfTest);
+qrlDeployToken.addEventListener("click", deployQip55TestToken);
 copyQrlCode.addEventListener("click", async () => {
   await copyText(qrlConnectCode.value);
   setConnectResult("Codigo copiado.");
