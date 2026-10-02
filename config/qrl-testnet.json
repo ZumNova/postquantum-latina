@@ -37,6 +37,12 @@
       "symbol": "LEQRL",
       "decimals": 18,
       "address": "Q9Dc891e30603d363baC01e492a235972fb7aA349Ba7073339d9c920d4fA2AAF8Dd96c649161Fb76A0f2d6B301df9532415257D5b5Eebd04cabe6fc7e384e0E38"
+    },
+    "LAT": {
+      "name": "QRLat",
+      "symbol": "LAT",
+      "decimals": 18,
+      "address": "QFAba30292845E141E2ae8a959A17056152594b705b5A809c33cEb9dC4060144f64f6b5b11CaEbbb72537913b6226Ae65068F1783C332Af86026CDbCc2C3101e2"
     }
   }
 }

@@ -1,9 +1,10 @@
 const tokenMeta = {
   LEQRL: { priceHint: 1, seedLiquidityUsd: 0 },
+  LAT: { priceHint: 1, seedLiquidityUsd: 0 },
   QRL: { priceHint: 0.77, seedLiquidityUsd: 770 }
 };
 
-const tokenOrder = ["LEQRL", "QRL"];
+const tokenOrder = ["LEQRL", "LAT", "QRL"];
 const pools = buildPools(tokenOrder);
 
 const amountIn = document.querySelector("#amount-in");
@@ -23,6 +24,7 @@ const marketsCount = document.querySelector("#markets-count");
 const marketsLabel = document.querySelector("#markets-label");
 const balanceQrl = document.querySelector("#balance-qrl");
 const balanceLeqrl = document.querySelector("#balance-leqrl");
+const balanceTokenLabel = document.querySelector("#balance-token-label");
 const pairStatus = document.querySelector("#pair-status");
 const marketStrip = document.querySelector("#market-strip");
 const contractList = document.querySelector("#contract-list");
@@ -429,7 +431,26 @@ async function loadPublicConfig() {
   const response = await fetch("/api/config", { cache: "no-store" });
   if (!response.ok) throw new Error("No pude leer /api/config");
   publicConfigCache = await response.json();
+  populateTokenSelectors(publicConfigCache);
   return publicConfigCache;
+}
+
+function populateTokenSelectors(config) {
+  const tokens = Object.entries(config.tokens || {});
+  if (!tokens.length) return;
+
+  const currentReadToken = qrlReadTokenSelect.value;
+  qrlReadTokenSelect.innerHTML = "";
+  tokens.forEach(([symbol, token]) => {
+    const option = document.createElement("option");
+    option.value = symbol;
+    option.textContent = `${symbol} - ${token.name || token.symbol || "token"}`;
+    qrlReadTokenSelect.appendChild(option);
+  });
+  qrlReadTokenSelect.value = tokens.some(([symbol]) => symbol === currentReadToken)
+    ? currentReadToken
+    : tokens[0][0];
+  balanceTokenLabel.textContent = qrlReadTokenSelect.value;
 }
 
 async function loadQrlConnectSdk() {
@@ -603,31 +624,35 @@ async function readQrlBalance(options = {}) {
     const provider = await buildQrlProvider();
     if (!connectedQrlAccount) throw new Error("Primero conecta y autoriza la cuenta.");
 
-    if (!options.silent) setConnectResult("Leyendo balance QRL y LEQRL de la cuenta conectada.");
+    const selectedTokenSymbol = qrlReadTokenSelect.value || "LEQRL";
+    if (!options.silent) setConnectResult(`Leyendo balance QRL y ${selectedTokenSymbol} de la cuenta conectada.`);
     const balance = await provider.request({
       method: "qrl_getBalance",
       params: [connectedQrlAccount, "latest"]
     });
-    const leqrl = await readLeqrlBalance(provider);
+    const tokenBalance = await readSelectedTokenBalance(provider, selectedTokenSymbol);
     const qrlText = formatNativeQrlBalance(balance);
-    const leqrlText = leqrl ? formatTokenUnits(leqrl.raw, leqrl.decimals, "LEQRL") : "LEQRL no disponible";
+    const tokenText = tokenBalance
+      ? formatTokenUnits(tokenBalance.raw, tokenBalance.decimals, selectedTokenSymbol)
+      : `${selectedTokenSymbol} no disponible`;
 
-    qrlBalanceReadout.textContent = `${qrlText} | ${leqrlText}`;
+    qrlBalanceReadout.textContent = `${qrlText} | ${tokenText}`;
     balanceQrl.textContent = qrlText.replace(" QRL", "");
-    balanceLeqrl.textContent = leqrl ? leqrlText.replace(" LEQRL", "") : "...";
+    balanceTokenLabel.textContent = selectedTokenSymbol;
+    balanceLeqrl.textContent = tokenBalance ? tokenText.replace(` ${selectedTokenSymbol}`, "") : "...";
 
-    if (!options.silent) setConnectResult(`Balance recibido: ${qrlText} / ${leqrlText}`);
+    if (!options.silent) setConnectResult(`Balance recibido: ${qrlText} / ${tokenText}`);
     appendQrlLog("qrl_getBalance", {
       account: formatQrlAddressFingerprint(connectedQrlAccount),
       format: getQrlAddressFormat(connectedQrlAccount),
       balance
     });
-    if (leqrl) {
-      appendQrlLog("qrl_call:LEQRL.balanceOf", {
+    if (tokenBalance) {
+      appendQrlLog(`qrl_call:${selectedTokenSymbol}.balanceOf`, {
         account: formatQrlAddressFingerprint(connectedQrlAccount),
-        token: leqrl.address,
-        raw: leqrl.raw,
-        formatted: leqrlText
+        token: tokenBalance.address,
+        raw: tokenBalance.raw,
+        formatted: tokenText
       });
     }
   } catch (error) {
@@ -638,9 +663,9 @@ async function readQrlBalance(options = {}) {
   }
 }
 
-async function readLeqrlBalance(provider) {
+async function readSelectedTokenBalance(provider, tokenSymbol) {
   const config = await loadPublicConfig();
-  const token = config.tokens.LEQRL;
+  const token = config.tokens[tokenSymbol];
   if (!token || !token.address) return null;
 
   const tokenAddress = qAddressToQip55ReadAddress(token.address);
@@ -842,6 +867,10 @@ qrlConnectButton.addEventListener("click", generateQrlConnectCode);
 qrlRequestAccounts.addEventListener("click", requestQrlAccounts);
 qrlReadBalance.addEventListener("click", readQrlBalance);
 qrlCallQrlat.addEventListener("click", callQrlatSymbol);
+qrlReadTokenSelect.addEventListener("change", () => {
+  balanceTokenLabel.textContent = qrlReadTokenSelect.value;
+  if (connectedQrlAccount) readQrlBalance({ silent: true });
+});
 qrlSignMessage.addEventListener("click", signQrlMessage);
 qrlSendSelfTest.addEventListener("click", sendQrlSelfTest);
 copyQrlCode.addEventListener("click", async () => {
@@ -871,14 +900,15 @@ async function loadLiveAssets() {
     payload.tokens.forEach(token => {
       tokenBySymbol[token.configuredSymbol] = token;
     });
-
+    const selectedTokenSymbol = qrlReadTokenSelect.value || "LEQRL";
     walletLabel.textContent = compactAddress(payload.wallet);
     networkState.textContent = payload.chainId === 1337 ? "Testnet" : `Chain ${payload.chainId}`;
     blockLabel.textContent = `Bloque ${payload.blockNumber}`;
     marketsCount.textContent = String(Object.keys(pools).length);
     marketsLabel.textContent = "Rutas cargadas";
     balanceQrl.textContent = compactBalance(payload.native.balance);
-    balanceLeqrl.textContent = compactBalance(tokenBySymbol.LEQRL && tokenBySymbol.LEQRL.balance);
+    balanceTokenLabel.textContent = selectedTokenSymbol;
+    balanceLeqrl.textContent = compactBalance(tokenBySymbol[selectedTokenSymbol] && tokenBySymbol[selectedTokenSymbol].balance);
   } catch (error) {
     walletLabel.textContent = "API offline";
     networkState.textContent = "Demo";
@@ -898,6 +928,7 @@ async function loadAmmConfig() {
 }
 
 loadLiveAssets();
+loadPublicConfig().catch(error => appendQrlLog("config:error", formatError(error)));
 loadAmmConfig();
 setInterval(loadLiveAssets, 30000);
 

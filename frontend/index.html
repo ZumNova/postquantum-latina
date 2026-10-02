@@ -148,6 +148,7 @@
                 <input id="amount-in" type="number" min="0" step="0.01" value="10" />
                 <select id="token-in" aria-label="Token de entrada">
                   <option value="LEQRL">LEQRL</option>
+                  <option value="LAT">LAT</option>
                   <option value="QRL">QRL</option>
                 </select>
               </div>
@@ -162,6 +163,7 @@
                 <select id="token-out" aria-label="Token de salida">
                   <option value="QRL">QRL</option>
                   <option value="LEQRL">LEQRL</option>
+                  <option value="LAT">LAT</option>
                 </select>
               </div>
             </div>
@@ -264,7 +266,7 @@
 
             <div class="locked-table">
               <div>
-                <span>LEQRL</span>
+                <span id="balance-token-label">LEQRL</span>
                 <strong id="balance-leqrl">...</strong>
               </div>
               <div>
