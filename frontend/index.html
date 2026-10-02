@@ -221,9 +221,17 @@
               <b id="qrl-balance-readout">Balance pendiente</b>
             </div>
 
+            <div class="approve-test">
+              <label for="qrl-read-token-select">Lectura de token</label>
+              <select id="qrl-read-token-select">
+                <option value="LEQRL">LEQRL - legal</option>
+                <option value="QRLAT">QRLAT - legacy</option>
+              </select>
+              <button class="secondary-button" type="button" id="qrl-call-qrlat" disabled>Leer token</button>
+            </div>
+
             <div class="connect-lab">
               <button class="secondary-button" type="button" id="qrl-read-balance" disabled>Leer balance</button>
-              <button class="secondary-button" type="button" id="qrl-call-qrlat" disabled>Leer QRLAT</button>
               <button class="secondary-button" type="button" id="qrl-sign-message" disabled>Firmar mensaje</button>
               <button class="secondary-button" type="button" id="qrl-send-self-test" disabled>Enviar 0.001 QRL</button>
               <button class="primary-button" type="button" id="qrl-deploy-token" disabled>Deploy token test</button>

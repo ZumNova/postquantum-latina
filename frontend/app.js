@@ -44,6 +44,7 @@ const copyQrlCode = document.querySelector("#copy-qrl-code");
 const qrlConnectedAccount = document.querySelector("#qrl-connected-account");
 const qrlAccountFormat = document.querySelector("#qrl-account-format");
 const qrlBalanceReadout = document.querySelector("#qrl-balance-readout");
+const qrlReadTokenSelect = document.querySelector("#qrl-read-token-select");
 const qrlReadBalance = document.querySelector("#qrl-read-balance");
 const qrlCallQrlat = document.querySelector("#qrl-call-qrlat");
 const qrlSignMessage = document.querySelector("#qrl-sign-message");
@@ -153,6 +154,12 @@ function decodeAbiString(hexValue) {
   const valueHex = clean.slice(valueStart, valueStart + byteLength * 2);
   const bytes = valueHex.match(/.{1,2}/g)?.map(byte => Number.parseInt(byte, 16)) || [];
   return new TextDecoder().decode(new Uint8Array(bytes));
+}
+
+function decodeAbiUint(hexValue) {
+  const clean = String(hexValue || "").replace(/^0x/, "");
+  if (!clean) return "0";
+  return BigInt(`0x${clean}`).toString();
 }
 
 function compactBalance(value) {
@@ -622,30 +629,26 @@ async function signQrlMessage() {
   }
 }
 
-async function callQrlatSymbol() {
+async function callSelectedTokenMetadata() {
   try {
     const provider = await buildQrlProvider();
     const config = await loadPublicConfig();
-    const token = config.tokens.QRLAT;
+    const tokenSymbol = qrlReadTokenSelect.value;
+    const token = config.tokens[tokenSymbol];
 
     if (!connectedQrlAccount) throw new Error("Primero conecta y autoriza la cuenta.");
-    if (!token || !token.address) throw new Error("Token QRLAT no configurado.");
+    if (!token || !token.address) throw new Error(`Token ${tokenSymbol} no configurado.`);
 
     const readAddress = qAddressToQip55ReadAddress(token.address);
-    const call = {
-      from: connectedQrlAccount,
-      to: readAddress,
-      data: "0x95d89b41"
-    };
 
     qrlCallQrlat.disabled = true;
-    setConnectResult("Leyendo symbol() de QRLAT via qrl_call con direccion QIP-55.");
-    appendQrlLog("qrl_call:QRLAT.symbol:request", {
-      from: formatQrlAddressFingerprint(call.from),
+    setConnectResult(`Leyendo metadata de ${tokenSymbol} via qrl_call.`);
+    appendQrlLog(`qrl_call:${tokenSymbol}:metadata:request`, {
+      from: formatQrlAddressFingerprint(connectedQrlAccount),
       configuredTo: token.address,
       callTo: readAddress,
       addressMode: token.address === readAddress ? "qip55" : "legacy-zero-left-padded",
-      data: call.data
+      methods: ["name()", "symbol()", "decimals()"]
     });
 
     const code = await provider.request({
@@ -653,33 +656,62 @@ async function callQrlatSymbol() {
       params: [readAddress, "latest"]
     });
 
-    appendQrlLog("qrl_getCode:QRLAT", {
+    appendQrlLog(`qrl_getCode:${tokenSymbol}`, {
       address: readAddress,
       hasCode: Boolean(code && code !== "0x"),
       codeLength: typeof code === "string" ? code.length : 0
     });
 
     if (!code || code === "0x") {
-      setConnectResult("QRLAT no tiene bytecode en la direccion QIP-55 probada.");
-      appendQrlLog("qrl_call:QRLAT.symbol:skipped", "Sin bytecode en la direccion expandida.");
+      setConnectResult(`${tokenSymbol} no tiene bytecode en la direccion QIP-55 probada.`);
+      appendQrlLog(`qrl_call:${tokenSymbol}:metadata:skipped`, "Sin bytecode en la direccion probada.");
       return;
     }
 
-    const result = await provider.request({
-      method: "qrl_call",
-      params: [call, "latest"]
-    });
-    const symbol = decodeAbiString(result);
+    const baseCall = {
+      from: connectedQrlAccount,
+      to: readAddress
+    };
+    const [nameRaw, symbolRaw, decimalsRaw] = await Promise.all([
+      provider.request({
+        method: "qrl_call",
+        params: [{ ...baseCall, data: "0x06fdde03" }, "latest"]
+      }),
+      provider.request({
+        method: "qrl_call",
+        params: [{ ...baseCall, data: "0x95d89b41" }, "latest"]
+      }),
+      provider.request({
+        method: "qrl_call",
+        params: [{ ...baseCall, data: "0x313ce567" }, "latest"]
+      })
+    ]);
 
-    setConnectResult(`QRLAT responde symbol(): ${symbol || result}`);
-    appendQrlLog("qrl_call:QRLAT.symbol", { raw: result, decoded: symbol });
+    const metadata = {
+      address: readAddress,
+      name: decodeAbiString(nameRaw),
+      symbol: decodeAbiString(symbolRaw),
+      decimals: decodeAbiUint(decimalsRaw),
+      raw: {
+        name: nameRaw,
+        symbol: symbolRaw,
+        decimals: decimalsRaw
+      }
+    };
+
+    setConnectResult(`${tokenSymbol} responde: ${metadata.name} / ${metadata.symbol} / ${metadata.decimals} decimales`);
+    appendQrlLog(`qrl_call:${tokenSymbol}:metadata`, metadata);
   } catch (error) {
     console.error("QRL contract call failed", error);
     setConnectResult(formatError(error));
-    appendQrlLog("qrl_call:QRLAT.symbol:error", formatError(error));
+    appendQrlLog("qrl_call:tokenMetadata:error", formatError(error));
   } finally {
     qrlCallQrlat.disabled = !connectedQrlAccount;
   }
+}
+
+async function callQrlatSymbol() {
+  return callSelectedTokenMetadata();
 }
 
 async function sendQrlSelfTest() {

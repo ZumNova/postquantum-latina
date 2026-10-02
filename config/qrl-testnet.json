@@ -67,6 +67,12 @@
       "symbol": "QRLAT",
       "address": "Qa365cc5d87447b56e1f637bf4252e5859f9b8f4d"
     },
+    "LEQRL": {
+      "name": "legal",
+      "symbol": "LEQRL",
+      "decimals": 18,
+      "address": "Q9Dc891e30603d363baC01e492a235972fb7aA349Ba7073339d9c920d4fA2AAF8Dd96c649161Fb76A0f2d6B301df9532415257D5b5Eebd04cabe6fc7e384e0E38"
+    },
     "WQRL_WRAPPED": {
       "name": "QRLatina Wrapped QRL",
       "symbol": "WQRL",
