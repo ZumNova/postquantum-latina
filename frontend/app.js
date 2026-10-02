@@ -45,6 +45,7 @@ const qrlConnectedAccount = document.querySelector("#qrl-connected-account");
 const qrlAccountFormat = document.querySelector("#qrl-account-format");
 const qrlBalanceReadout = document.querySelector("#qrl-balance-readout");
 const qrlReadBalance = document.querySelector("#qrl-read-balance");
+const qrlCallQrlat = document.querySelector("#qrl-call-qrlat");
 const qrlSignMessage = document.querySelector("#qrl-sign-message");
 const qrlSendSelfTest = document.querySelector("#qrl-send-self-test");
 const approveTokenSelect = document.querySelector("#approve-token-select");
@@ -103,6 +104,7 @@ function setConnectedQrlAccount(account) {
   const hasAccount = Boolean(connectedQrlAccount);
   approveTestButton.disabled = !hasAccount;
   qrlReadBalance.disabled = !hasAccount;
+  qrlCallQrlat.disabled = !hasAccount;
   qrlSignMessage.disabled = !hasAccount;
   qrlSendSelfTest.disabled = !hasAccount;
 }
@@ -129,6 +131,18 @@ function copyText(value) {
 function utf8ToHex(value) {
   const bytes = new TextEncoder().encode(value);
   return `0x${Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function decodeAbiString(hexValue) {
+  const clean = String(hexValue || "").replace(/^0x/, "");
+  if (!clean || clean.length < 128) return hexValue || "";
+  const offset = Number.parseInt(clean.slice(0, 64), 16);
+  const lengthStart = offset * 2;
+  const byteLength = Number.parseInt(clean.slice(lengthStart, lengthStart + 64), 16);
+  const valueStart = lengthStart + 64;
+  const valueHex = clean.slice(valueStart, valueStart + byteLength * 2);
+  const bytes = valueHex.match(/.{1,2}/g)?.map(byte => Number.parseInt(byte, 16)) || [];
+  return new TextDecoder().decode(new Uint8Array(bytes));
 }
 
 function compactBalance(value) {
@@ -593,6 +607,46 @@ async function signQrlMessage() {
   }
 }
 
+async function callQrlatSymbol() {
+  try {
+    const provider = await buildQrlProvider();
+    const config = await loadPublicConfig();
+    const token = config.tokens.QRLAT;
+
+    if (!connectedQrlAccount) throw new Error("Primero conecta y autoriza la cuenta.");
+    if (!token || !token.address) throw new Error("Token QRLAT no configurado.");
+
+    const call = {
+      from: connectedQrlAccount,
+      to: token.address,
+      data: "0x95d89b41"
+    };
+
+    qrlCallQrlat.disabled = true;
+    setConnectResult("Leyendo symbol() de QRLAT via qrl_call.");
+    appendQrlLog("qrl_call:QRLAT.symbol:request", {
+      from: formatQrlAddressFingerprint(call.from),
+      to: token.address,
+      data: call.data
+    });
+
+    const result = await provider.request({
+      method: "qrl_call",
+      params: [call, "latest"]
+    });
+    const symbol = decodeAbiString(result);
+
+    setConnectResult(`QRLAT responde symbol(): ${symbol || result}`);
+    appendQrlLog("qrl_call:QRLAT.symbol", { raw: result, decoded: symbol });
+  } catch (error) {
+    console.error("QRL contract call failed", error);
+    setConnectResult(formatError(error));
+    appendQrlLog("qrl_call:QRLAT.symbol:error", formatError(error));
+  } finally {
+    qrlCallQrlat.disabled = !connectedQrlAccount;
+  }
+}
+
 async function sendQrlSelfTest() {
   try {
     const provider = await buildQrlProvider();
@@ -697,6 +751,7 @@ document.querySelector("#copy-sequence").addEventListener("click", async () => {
 qrlConnectButton.addEventListener("click", generateQrlConnectCode);
 qrlRequestAccounts.addEventListener("click", requestQrlAccounts);
 qrlReadBalance.addEventListener("click", readQrlBalance);
+qrlCallQrlat.addEventListener("click", callQrlatSymbol);
 qrlSignMessage.addEventListener("click", signQrlMessage);
 qrlSendSelfTest.addEventListener("click", sendQrlSelfTest);
 copyQrlCode.addEventListener("click", async () => {
