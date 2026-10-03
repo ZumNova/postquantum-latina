@@ -43,6 +43,12 @@
       "symbol": "LAT",
       "decimals": 18,
       "address": "QFAba30292845E141E2ae8a959A17056152594b705b5A809c33cEb9dC4060144f64f6b5b11CaEbbb72537913b6226Ae65068F1783C332Af86026CDbCc2C3101e2"
+    },
+    "VIG": {
+      "name": "VIGOR",
+      "symbol": "VIG",
+      "decimals": 18,
+      "address": "Q5432F3114f7C978f55f9a2F9110e3C80f7A9b20B51e9D1818BFB1b8912557205E6d562f73f0181108d35179255e086f700B4Ddc0029Ca1c3b61bB30E6Bbf9F7C"
     }
   }
 }
