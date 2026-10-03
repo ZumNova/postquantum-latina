@@ -2,10 +2,11 @@ const tokenMeta = {
   LEQRL: { priceHint: 1, seedLiquidityUsd: 0 },
   LAT: { priceHint: 1, seedLiquidityUsd: 0 },
   VIG: { priceHint: 1, seedLiquidityUsd: 0 },
+  KRLT: { priceHint: 1, seedLiquidityUsd: 0 },
   QRL: { priceHint: 0.77, seedLiquidityUsd: 770 }
 };
 
-const tokenOrder = ["LEQRL", "LAT", "VIG", "QRL"];
+const tokenOrder = ["LEQRL", "LAT", "VIG", "KRLT", "QRL"];
 const pools = buildPools(tokenOrder);
 
 const amountIn = document.querySelector("#amount-in");
