@@ -44,6 +44,8 @@ const qrlAccountFormat = document.querySelector("#qrl-account-format");
 const qrlBalanceReadout = document.querySelector("#qrl-balance-readout");
 const qrlReadTokenSelect = document.querySelector("#qrl-read-token-select");
 const qrlReadBalance = document.querySelector("#qrl-read-balance");
+const qrlReadAllowance = document.querySelector("#qrl-read-allowance");
+const qrlApproveSelf = document.querySelector("#qrl-approve-self");
 const qrlCallQrlat = document.querySelector("#qrl-call-qrlat");
 const qrlSignMessage = document.querySelector("#qrl-sign-message");
 const qrlSendSelfTest = document.querySelector("#qrl-send-self-test");
@@ -100,6 +102,8 @@ function setConnectedQrlAccount(account) {
   qrlBalanceReadout.textContent = connectedQrlAccount ? "Balance pendiente" : "Balance pendiente";
   const hasAccount = Boolean(connectedQrlAccount);
   qrlReadBalance.disabled = !hasAccount;
+  qrlReadAllowance.disabled = !hasAccount;
+  qrlApproveSelf.disabled = !hasAccount;
   qrlCallQrlat.disabled = !hasAccount;
   qrlSignMessage.disabled = !hasAccount;
   qrlSendSelfTest.disabled = !hasAccount;
@@ -194,6 +198,18 @@ function encodeQip55AddressArg(address) {
 
 function encodeBalanceOfCalldata(account) {
   return `0x70a08231${encodeQip55AddressArg(account)}`;
+}
+
+function encodeUintArg(value) {
+  return BigInt(value).toString(16).padStart(128, "0");
+}
+
+function encodeApproveCalldata(spender, amountWei) {
+  return `0x095ea7b3${encodeQip55AddressArg(spender)}${encodeUintArg(amountWei)}`;
+}
+
+function encodeAllowanceCalldata(owner, spender) {
+  return `0xdd62ed3e${encodeQip55AddressArg(owner)}${encodeQip55AddressArg(spender)}`;
 }
 
 function compactBalance(value) {
@@ -691,6 +707,48 @@ async function readSelectedTokenBalance(provider, tokenSymbol) {
   };
 }
 
+async function readSelectedTokenAllowance(options = {}) {
+  try {
+    const provider = await buildQrlProvider();
+    const config = await loadPublicConfig();
+    const tokenSymbol = qrlReadTokenSelect.value || "LEQRL";
+    const token = config.tokens[tokenSymbol];
+
+    if (!connectedQrlAccount) throw new Error("Primero conecta y autoriza la cuenta.");
+    if (!token || !token.address) throw new Error(`Token ${tokenSymbol} no configurado.`);
+
+    const tokenAddress = qAddressToQip55ReadAddress(token.address);
+    const raw = await provider.request({
+      method: "qrl_call",
+      params: [
+        {
+          from: connectedQrlAccount,
+          to: tokenAddress,
+          data: encodeAllowanceCalldata(connectedQrlAccount, connectedQrlAccount)
+        },
+        "latest"
+      ]
+    });
+    const allowanceRaw = decodeAbiUint(raw);
+    const formatted = formatTokenUnits(allowanceRaw, token.decimals || 18, tokenSymbol);
+
+    if (!options.silent) setConnectResult(`Allowance self ${tokenSymbol}: ${formatted}`);
+    appendQrlLog(`qrl_call:${tokenSymbol}.allowanceSelf`, {
+      owner: formatQrlAddressFingerprint(connectedQrlAccount),
+      spender: formatQrlAddressFingerprint(connectedQrlAccount),
+      token: tokenAddress,
+      raw: allowanceRaw,
+      formatted
+    });
+    return { raw: allowanceRaw, formatted };
+  } catch (error) {
+    console.error("QRL allowance read failed", error);
+    if (!options.silent) setConnectResult(formatError(error));
+    appendQrlLog("qrl_call:allowanceSelf:error", formatError(error));
+    return null;
+  }
+}
+
 async function signQrlMessage() {
   try {
     const provider = await buildQrlProvider();
@@ -800,6 +858,65 @@ async function callQrlatSymbol() {
   return callSelectedTokenMetadata();
 }
 
+async function approveSelectedTokenToSelf() {
+  try {
+    const provider = await buildQrlProvider();
+    const config = await loadPublicConfig();
+    const tokenSymbol = qrlReadTokenSelect.value || "LEQRL";
+    const token = config.tokens[tokenSymbol];
+
+    if (!connectedQrlAccount) throw new Error("Primero conecta y autoriza la cuenta.");
+    if (!token || !token.address) throw new Error(`Token ${tokenSymbol} no configurado.`);
+
+    const tokenAddress = qAddressToQip55ReadAddress(token.address);
+    const amount = 10n ** 15n; // 0.001 token with 18 decimals.
+    const tx = {
+      from: connectedQrlAccount,
+      to: tokenAddress,
+      value: "0x0",
+      data: encodeApproveCalldata(connectedQrlAccount, amount)
+    };
+
+    qrlApproveSelf.disabled = true;
+    setConnectResult(`Enviando approve self de 0.001 ${tokenSymbol}. Confirma en MyQRLWallet.`);
+    appendQrlLog(`qrl_sendTransaction:${tokenSymbol}.approveSelf:request`, {
+      from: formatQrlAddressFingerprint(tx.from),
+      token: tokenAddress,
+      spender: formatQrlAddressFingerprint(connectedQrlAccount),
+      amount: amount.toString()
+    });
+
+    try {
+      const estimatedGas = await provider.request({
+        method: "qrl_estimateGas",
+        params: [tx]
+      });
+      tx.gas = `0x${((BigInt(estimatedGas) * 120n) / 100n).toString(16)}`;
+      appendQrlLog(`qrl_estimateGas:${tokenSymbol}.approveSelf`, {
+        estimatedGas,
+        gasWithMargin: tx.gas
+      });
+    } catch (error) {
+      appendQrlLog(`qrl_estimateGas:${tokenSymbol}.approveSelf:skipped`, formatError(error));
+    }
+
+    const txHash = await provider.request({
+      method: "qrl_sendTransaction",
+      params: [tx]
+    });
+
+    setConnectResult(`Approve enviado: ${txHash}`);
+    appendQrlLog(`qrl_sendTransaction:${tokenSymbol}.approveSelf`, { txHash });
+    window.setTimeout(() => readSelectedTokenAllowance({ silent: false }), 8000);
+  } catch (error) {
+    console.error("QRL approve self failed", error);
+    setConnectResult(formatError(error));
+    appendQrlLog("qrl_sendTransaction:approveSelf:error", formatError(error));
+  } finally {
+    qrlApproveSelf.disabled = !connectedQrlAccount;
+  }
+}
+
 async function sendQrlSelfTest() {
   try {
     const provider = await buildQrlProvider();
@@ -868,6 +985,8 @@ document.querySelector("#copy-sequence").addEventListener("click", async () => {
 qrlConnectButton.addEventListener("click", generateQrlConnectCode);
 qrlRequestAccounts.addEventListener("click", requestQrlAccounts);
 qrlReadBalance.addEventListener("click", readQrlBalance);
+qrlReadAllowance.addEventListener("click", readSelectedTokenAllowance);
+qrlApproveSelf.addEventListener("click", approveSelectedTokenToSelf);
 qrlCallQrlat.addEventListener("click", callQrlatSymbol);
 qrlReadTokenSelect.addEventListener("change", () => {
   balanceTokenLabel.textContent = qrlReadTokenSelect.value;
