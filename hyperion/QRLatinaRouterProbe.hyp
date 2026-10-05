@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: MIT
+pragma hyperion ^0.0.2;
+
+interface IQRC20 {
+    function transferFrom(address from, address to, uint256 value) external returns (bool);
+}
+
+contract QRLatinaRouterProbe {
+    event TokenPulled(address indexed token, address indexed from, address indexed to, uint256 amount);
+
+    function pullToken(address token, address from, uint256 amount) external returns (bool) {
+        bool ok = IQRC20(token).transferFrom(from, address(this), amount);
+        require(ok, "TRANSFER_FROM_FAILED");
+
+        emit TokenPulled(token, from, address(this), amount);
+        return true;
+    }
+}

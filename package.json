@@ -10,10 +10,12 @@
     "build": "npm run vercel:build",
     "vercel:build": "node scripts/qrl/build-frontend.js",
     "build:solidity": "forge build",
+    "build:hyperion": "node scripts/qrl/compile-hyperion.js",
     "test:solidity": "forge test",
     "frontend:serve": "python3 -m http.server 5173 --directory frontend",
     "frontend:dev": "node scripts/qrl/dev-server.js",
     "deploy:pqd:qrl": "node scripts/qrl/deploy-pqd.js",
+    "deploy:router-probe:hyperion": "node scripts/qrl/deploy-router-probe-hyperion.js",
     "deploy:amm:qrl": "node scripts/qrl/deploy-amm.js",
     "deploy:amm:static:qrl": "node scripts/qrl/deploy-amm-static.js",
     "create:pairs:qrl": "node scripts/qrl/create-pairs.js",
@@ -28,5 +30,8 @@
     "@theqrl/web3": "^0.4.0",
     "dotenv": "^17.4.2",
     "ethers": "^6.13.4"
+  },
+  "devDependencies": {
+    "@theqrl/hypc": "^0.0.2"
   }
 }
