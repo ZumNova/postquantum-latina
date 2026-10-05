@@ -616,7 +616,8 @@ meter::-webkit-meter-optimum-value {
   grid-template-columns: minmax(0, 1fr) minmax(132px, 0.38fr);
 }
 
-.connect-code-line input {
+.connect-code-line input,
+.router-input-line input {
   width: 100%;
   min-height: 42px;
   padding: 0 12px;
@@ -628,6 +629,12 @@ meter::-webkit-meter-optimum-value {
   background: white;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.router-input-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 0.3fr);
+  gap: 10px;
 }
 
 .wallet-readout {

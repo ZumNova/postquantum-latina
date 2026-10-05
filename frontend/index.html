@@ -233,7 +233,6 @@
               <button class="secondary-button" type="button" id="qrl-read-balance" disabled>Leer balance</button>
               <button class="secondary-button" type="button" id="qrl-read-allowance" disabled>Leer allowance</button>
               <button class="primary-button" type="button" id="qrl-approve-self" disabled>Approve self</button>
-              <button class="primary-button" type="button" id="qrl-deploy-router-probe" disabled>Deploy RouterProbe</button>
               <button class="secondary-button" type="button" id="qrl-read-router-allowance" disabled>Allowance router</button>
               <button class="primary-button" type="button" id="qrl-approve-router" disabled>Approve router</button>
               <button class="secondary-button" type="button" id="qrl-sign-message" disabled>Firmar mensaje</button>
@@ -243,7 +242,11 @@
             <div class="wallet-readout router-readout">
               <span>Router probe</span>
               <strong id="qrl-router-address">Sin deploy</strong>
-              <small id="qrl-router-status">Cargar direccion QIP-55 para probar approve al router.</small>
+              <div class="router-input-line">
+                <input id="qrl-router-input" placeholder="Pegar direccion QIP-55 del router" />
+                <button class="secondary-button" type="button" id="qrl-save-router-probe">Usar router</button>
+              </div>
+              <small id="qrl-router-status">QRL Connect no permite contract creation sin campo to. Desplegar con herramienta/factory QRL y pegar la direccion aca.</small>
             </div>
 
             <p class="connect-result" id="qrl-connect-result">Esperando pairing.</p>
