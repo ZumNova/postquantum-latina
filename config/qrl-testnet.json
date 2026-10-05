@@ -1,6 +1,6 @@
 {
   "provider": "https://qrlwallet.com/api/qrl-rpc/testnet",
-  "chainId": 1337,
+  "chainId": 3151909,
   "txConfirmations": 12,
   "protocols": {
     "quantaSwap": {
@@ -9,7 +9,7 @@
       "ethSepoliaHtlc": "0x910D5d4a7f2037c01F3B4C835167357e89909281",
       "ethSepoliaRpc": "https://ethereum-sepolia-rpc.publicnode.com",
       "ethSepoliaChainId": 11155111,
-      "qrlChainId": 1337,
+      "qrlChainId": 3151909,
       "source": "https://github.com/DigitalGuards/QuantaSwap"
     }
   },

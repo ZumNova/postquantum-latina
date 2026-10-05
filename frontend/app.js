@@ -46,6 +46,7 @@ const qrlReadTokenSelect = document.querySelector("#qrl-read-token-select");
 const qrlReadBalance = document.querySelector("#qrl-read-balance");
 const qrlReadAllowance = document.querySelector("#qrl-read-allowance");
 const qrlApproveSelf = document.querySelector("#qrl-approve-self");
+const qrlDeployRouterProbe = document.querySelector("#qrl-deploy-router-probe");
 const qrlReadRouterAllowance = document.querySelector("#qrl-read-router-allowance");
 const qrlApproveRouter = document.querySelector("#qrl-approve-router");
 const qrlCallQrlat = document.querySelector("#qrl-call-qrlat");
@@ -61,6 +62,7 @@ let qrlProvider = null;
 let connectedQrlAccount = "";
 let publicConfigCache = null;
 let qrlConnectModulePromise = null;
+let sessionRouterProbeAddress = localStorage.getItem("qrlatina.routerProbe") || "";
 
 walletLabel.textContent = "QRL testnet";
 networkState.textContent = "Testnet";
@@ -219,7 +221,7 @@ function encodeAllowanceCalldata(owner, spender) {
 
 function getRouterProbeAddress(config = publicConfigCache) {
   const amm = config?.contracts?.qrLatinaAmm;
-  return amm?.routerProbe || amm?.router || "";
+  return sessionRouterProbeAddress || amm?.routerProbe || amm?.router || "";
 }
 
 function refreshRouterProbeControls(config = publicConfigCache) {
@@ -238,6 +240,15 @@ function refreshRouterProbeControls(config = publicConfigCache) {
   }
   if (qrlReadRouterAllowance) qrlReadRouterAllowance.disabled = !hasAccount || !hasRouter;
   if (qrlApproveRouter) qrlApproveRouter.disabled = !hasAccount || !hasRouter;
+  if (qrlDeployRouterProbe) qrlDeployRouterProbe.disabled = !hasAccount;
+}
+
+function rememberRouterProbeAddress(address) {
+  sessionRouterProbeAddress = address || "";
+  if (sessionRouterProbeAddress) {
+    localStorage.setItem("qrlatina.routerProbe", sessionRouterProbeAddress);
+  }
+  refreshRouterProbeControls();
 }
 
 function compactBalance(value) {
@@ -514,6 +525,8 @@ async function buildQrlProvider() {
   if (qrlProvider) return qrlProvider;
 
   const QRLConnect = await loadQrlConnectSdk();
+  const config = await loadPublicConfig();
+  const chainId = Number(config.chainId || 3151909);
 
   qrlProvider = new QRLConnect({
     dappMetadata: {
@@ -523,7 +536,7 @@ async function buildQrlProvider() {
       redirectUrl: window.location.href
     },
     relayUrl: "https://qrlwallet.com",
-    chainId: "0x539",
+    chainId: `0x${chainId.toString(16)}`,
     autoReconnect: true,
     walletRedirectOnRequest: true,
     debug: false
@@ -975,6 +988,116 @@ async function approveSelectedTokenToSpender(spender, spenderLabel, afterSend) {
   }
 }
 
+async function loadRouterProbeArtifact() {
+  const response = await fetch("/api/router-probe", { cache: "no-store" });
+  if (!response.ok) throw new Error("No pude leer /api/router-probe");
+  const artifact = await response.json();
+  if (!artifact.bytecode || !artifact.bytecode.startsWith("0x")) {
+    throw new Error("Artifact RouterProbe sin bytecode valido.");
+  }
+  return artifact;
+}
+
+async function waitForTransactionReceipt(provider, txHash, attempts = 18) {
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const receipt = await provider.request({
+        method: "qrl_getTransactionReceipt",
+        params: [txHash]
+      });
+      if (receipt) return receipt;
+    } catch (error) {
+      appendQrlLog("qrl_getTransactionReceipt:pending", {
+        attempt,
+        message: error.message || String(error)
+      });
+    }
+    await new Promise(resolve => window.setTimeout(resolve, 7000));
+  }
+  return null;
+}
+
+async function deployRouterProbeFromWallet() {
+  try {
+    const provider = await buildQrlProvider();
+    if (!connectedQrlAccount) throw new Error("Primero conecta y autoriza la cuenta.");
+
+    const artifact = await loadRouterProbeArtifact();
+    const tx = {
+      from: connectedQrlAccount,
+      value: "0x0",
+      data: artifact.bytecode
+    };
+
+    qrlDeployRouterProbe.disabled = true;
+    setConnectResult("Preparando deploy RouterProbe. Confirma la transaccion en MyQRLWallet.");
+    appendQrlLog("qrl_sendTransaction:RouterProbe.deploy:request", {
+      from: formatQrlAddressFingerprint(connectedQrlAccount),
+      bytecodeBytes: (artifact.bytecode.length - 2) / 2
+    });
+
+    try {
+      const estimatedGas = await provider.request({
+        method: "qrl_estimateGas",
+        params: [tx]
+      });
+      tx.gas = `0x${((BigInt(estimatedGas) * 125n) / 100n).toString(16)}`;
+      appendQrlLog("qrl_estimateGas:RouterProbe.deploy", {
+        estimatedGas,
+        gasWithMargin: tx.gas
+      });
+    } catch (error) {
+      appendQrlLog("qrl_estimateGas:RouterProbe.deploy:skipped", formatError(error));
+    }
+
+    const txHash = await provider.request({
+      method: "qrl_sendTransaction",
+      params: [tx]
+    });
+    setConnectResult(`Deploy enviado: ${txHash}. Esperando receipt.`);
+    appendQrlLog("qrl_sendTransaction:RouterProbe.deploy", { txHash });
+
+    const receipt = await waitForTransactionReceipt(provider, txHash);
+    if (!receipt) {
+      setConnectResult(`Deploy enviado, pero sin receipt todavia: ${txHash}`);
+      appendQrlLog("qrl_getTransactionReceipt:RouterProbe.timeout", { txHash });
+      return;
+    }
+
+    const contractAddress = receipt.contractAddress || receipt.contract_address || "";
+    appendQrlLog("qrl_getTransactionReceipt:RouterProbe", receipt);
+    if (!contractAddress) {
+      setConnectResult("Receipt recibido, pero no trae contractAddress. Revisa el log RPC.");
+      return;
+    }
+
+    const code = await provider.request({
+      method: "qrl_getCode",
+      params: [contractAddress, "latest"]
+    });
+    const hasCode = Boolean(code && code !== "0x");
+    appendQrlLog("qrl_getCode:RouterProbe", {
+      address: contractAddress,
+      hasCode,
+      codeLength: typeof code === "string" ? code.length : 0
+    });
+
+    if (!hasCode) {
+      setConnectResult(`RouterProbe desplegado en ${formatQrlAddressFingerprint(contractAddress)}, pero sin bytecode visible todavia.`);
+      return;
+    }
+
+    rememberRouterProbeAddress(contractAddress);
+    setConnectResult(`RouterProbe listo: ${formatQrlAddressFingerprint(contractAddress)}`);
+  } catch (error) {
+    console.error("RouterProbe deploy failed", error);
+    setConnectResult(formatError(error));
+    appendQrlLog("qrl_sendTransaction:RouterProbe.deploy:error", formatError(error));
+  } finally {
+    refreshRouterProbeControls();
+  }
+}
+
 async function sendQrlSelfTest() {
   try {
     const provider = await buildQrlProvider();
@@ -1045,6 +1168,7 @@ qrlRequestAccounts.addEventListener("click", requestQrlAccounts);
 qrlReadBalance.addEventListener("click", readQrlBalance);
 qrlReadAllowance.addEventListener("click", readSelectedTokenAllowance);
 qrlApproveSelf.addEventListener("click", approveSelectedTokenToSelf);
+qrlDeployRouterProbe.addEventListener("click", deployRouterProbeFromWallet);
 qrlReadRouterAllowance.addEventListener("click", readSelectedTokenRouterAllowance);
 qrlApproveRouter.addEventListener("click", approveSelectedTokenToRouter);
 qrlCallQrlat.addEventListener("click", callQrlatSymbol);
@@ -1083,7 +1207,7 @@ async function loadLiveAssets() {
     });
     const selectedTokenSymbol = qrlReadTokenSelect.value || "LEQRL";
     walletLabel.textContent = compactAddress(payload.wallet);
-    networkState.textContent = payload.chainId === 1337 ? "Testnet" : `Chain ${payload.chainId}`;
+    networkState.textContent = payload.chainId === 3151909 ? "Testnet" : `Chain ${payload.chainId}`;
     blockLabel.textContent = `Bloque ${payload.blockNumber}`;
     marketsCount.textContent = String(Object.keys(pools).length);
     marketsLabel.textContent = "Rutas cargadas";
