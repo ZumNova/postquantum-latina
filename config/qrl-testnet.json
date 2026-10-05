@@ -26,6 +26,7 @@
       "wqrl": "",
       "factory": "",
       "router": "",
+      "routerProbe": "",
       "lens": "",
       "factoryMode": "qip55-token-discovery",
       "pairs": {}
